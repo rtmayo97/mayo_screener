@@ -25,7 +25,7 @@ ATR_MULTIPLIER = 1.5  # Dynamic stop loss multiplier
 
 # --- FUNCTIONS TO FETCH DATA ---
 def get_premarket_top_gainers():
-    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=eNhOuI5ZzbNXbyYvkGmsL1j38yntxj4k'
+    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=*****'
     response = requests.get(url)
     tickers = [item['symbol'] for item in response.json()[:50]]  # Top 50 by volume
     return tickers
@@ -71,7 +71,7 @@ def get_premarket_data():
 
 
 def get_news_sentiment(ticker):
-    api_key = '40c7c1375d0141d284abfbb2ea507520'
+    api_key = '*******'
     url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
     response = requests.get(url)
 
