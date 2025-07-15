@@ -22,10 +22,11 @@ PREMARKET_RANGE_MIN = 0.5
 EMA_SHORT = 9
 EMA_LONG = 20
 ATR_MULTIPLIER = 1.5  # Dynamic stop loss multiplier
+RISK_PERCENTAGE = 0.02  # 2% of investment per trade
 
 # --- FUNCTIONS TO FETCH DATA ---
 def get_premarket_top_gainers():
-    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=*****'
+    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=eNhOuI5ZzbNXbyYvkGmsL1j38yntxj4k'
     response = requests.get(url)
     tickers = [item['symbol'] for item in response.json()[:50]]  # Top 50 by volume
     return tickers
@@ -71,7 +72,7 @@ def get_premarket_data():
 
 
 def get_news_sentiment(ticker):
-    api_key = '*******'
+    api_key = '40c7c1375d0141d284abfbb2ea507520'
     url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
     response = requests.get(url)
 
@@ -148,7 +149,15 @@ def get_trade_plan(ticker, price):
     return price, round(stop_loss, 2), round(target, 2)
 
 
-def run_screener():
+def calculate_shares(investment_amount, price, stop_loss):
+    risk_amount = investment_amount * RISK_PERCENTAGE
+    per_share_risk = price - stop_loss
+    if per_share_risk == 0:
+        return 0
+    return int(risk_amount // per_share_risk)
+
+
+def run_screener(investment_amount):
     data = get_premarket_data()
     if data.empty:
         return []
@@ -159,12 +168,21 @@ def run_screener():
     plans = []
     for _, row in data.iterrows():
         entry, stop, target = get_trade_plan(row['ticker'], row['price'])
+        shares = calculate_shares(investment_amount, entry, stop)
+        total_invested = shares * entry
+        potential_profit = shares * (target - entry)
+        potential_loss = shares * (entry - stop)
+
         plans.append({
             'ticker': row['ticker'],
             'score': row['score'],
             'entry': round(entry, 2),
             'stop_loss': stop,
-            'target': target
+            'target': target,
+            'shares': shares,
+            'total_invested': round(total_invested, 2),
+            'potential_profit': round(potential_profit, 2),
+            'potential_loss': round(potential_loss, 2)
         })
 
     return plans
@@ -173,8 +191,10 @@ def run_screener():
 # --- STREAMLIT INTERFACE ---
 st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
 
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=100.0, value=1000.0, step=100.0)
+
 if st.button('Run Screener'):
-    trade_plans = run_screener()
+    trade_plans = run_screener(investment_amount)
     if not trade_plans:
         st.error("No qualifying stocks found.")
     for plan in trade_plans:
@@ -183,7 +203,12 @@ if st.button('Run Screener'):
         st.write(f"Entry Price: ${plan['entry']}")
         st.write(f"Stop Loss: ${plan['stop_loss']}")
         st.write(f"Target Price: ${plan['target']}")
+        st.write(f"Suggested Shares to Buy: {plan['shares']}")
+        st.write(f"Total Investment: ${plan['total_invested']}")
+        st.write(f"Potential Profit: ${plan['potential_profit']}")
+        st.write(f"Potential Loss: ${plan['potential_loss']}")
         message = (
             f"{plan['ticker']} | Score: {plan['score']}\n"
-            f"Entry: ${plan['entry']} | Stop Loss: ${plan['stop_loss']} | Target: ${plan['target']}"
+            f"Entry: ${plan['entry']} | Stop Loss: ${plan['stop_loss']} | Target: ${plan['target']} | Shares: {plan['shares']}\n"
+            f"Total Investment: ${plan['total_invested']} | Potential Profit: ${plan['potential_profit']} | Potential Loss: ${plan['potential_loss']}"
         )
