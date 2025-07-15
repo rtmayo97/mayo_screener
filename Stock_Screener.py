@@ -196,7 +196,7 @@ def run_screener(investment_amount):
 # --- STREAMLIT INTERFACE ---
 st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
 
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000000000000.0, step=100.0)
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0)
 
 if st.button('Run Screener'):
     trade_plans = run_screener(investment_amount)
