@@ -8,6 +8,10 @@ import pandas_ta as ta
 import yfinance as yf
 from textblob import TextBlob
 import streamlit as st
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- CONFIGURATIONS ---
 PRICE_MIN = 50
@@ -26,7 +30,8 @@ RISK_PERCENTAGE = 0.02  # 2% of investment per trade
 
 # --- FUNCTIONS TO FETCH DATA ---
 def get_premarket_top_gainers():
-    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=eNhOuI5ZzbNXbyYvkGmsL1j38yntxj4k'
+    fmp_api = os.getenv('FMP_Key')
+    url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
     tickers = [item['symbol'] for item in response.json()[:50]]  # Top 50 by volume
     return tickers
@@ -72,7 +77,7 @@ def get_premarket_data():
 
 
 def get_news_sentiment(ticker):
-    api_key = '40c7c1375d0141d284abfbb2ea507520'
+    api_key = os.getenv('NewsAPI_Key')
     url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
     response = requests.get(url)
 
@@ -191,7 +196,7 @@ def run_screener(investment_amount):
 # --- STREAMLIT INTERFACE ---
 st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
 
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=100.0, value=1000.0, step=100.0)
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000000000000.0, step=100.0)
 
 if st.button('Run Screener'):
     trade_plans = run_screener(investment_amount)
