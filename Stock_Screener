@@ -1,0 +1,189 @@
+# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Enhanced Indicators for Pre-market
+
+import sys
+import requests
+import pandas as pd
+from datetime import datetime
+import pandas_ta as ta
+import yfinance as yf
+from textblob import TextBlob
+import streamlit as st
+
+# --- CONFIGURATIONS ---
+PRICE_MIN = 50
+PRICE_MAX = 175
+PREMARKET_VOLUME_MIN = 1000000
+GAP_UP_MIN = 2.0  # %
+GAP_UP_MAX = 10.0  # % upper threshold
+RVOL_THRESHOLD = 1.5
+ATR_MIN = 1
+ATR_MAX = 3
+PREMARKET_RANGE_MIN = 0.5
+EMA_SHORT = 9
+EMA_LONG = 20
+ATR_MULTIPLIER = 1.5  # Dynamic stop loss multiplier
+
+# --- FUNCTIONS TO FETCH DATA ---
+def get_premarket_top_gainers():
+    url = 'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=eNhOuI5ZzbNXbyYvkGmsL1j38yntxj4k'
+    response = requests.get(url)
+    tickers = [item['symbol'] for item in response.json()[:50]]  # Top 50 by volume
+    return tickers
+
+
+def get_premarket_data():
+    tickers = get_premarket_top_gainers()
+    data = []
+    for ticker in tickers:
+        try:
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="1d", interval="5m", prepost=True)
+            premarket_volume = hist['Volume'][:30].sum()
+
+            if hist.empty:
+                continue
+
+            close_prices = hist['Close'].dropna().tail(5)
+            avg_premarket_price = close_prices.mean() if not close_prices.empty else stock.history(period='2d')['Close'][-2]
+
+            if not (PRICE_MIN <= avg_premarket_price <= PRICE_MAX):
+                continue
+
+            prev_close = stock.history(period='2d')['Close'][-2]
+            gap_up = ((avg_premarket_price - prev_close) / prev_close) * 100
+            rvol = premarket_volume / (stock.info['averageVolume'] or 1)
+
+            premarket_range = hist['High'].max() - hist['Low'].min()
+
+            data.append({
+                'ticker': ticker,
+                'price': avg_premarket_price,
+                'premarket_volume': premarket_volume,
+                'gap_up': gap_up,
+                'rvol': rvol,
+                'float': stock.info.get('sharesOutstanding', 1),
+                'sector': stock.info.get('sector', 'Unknown'),
+                'premarket_range': premarket_range,
+            })
+        except Exception as e:
+            continue
+    return pd.DataFrame(data)
+
+
+def get_news_sentiment(ticker):
+    api_key = '40c7c1375d0141d284abfbb2ea507520'
+    url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        return 0
+
+    articles = response.json().get('articles', [])
+    headlines = [article['title'] for article in articles]
+    sentiment_scores = [TextBlob(headline).sentiment.polarity for headline in headlines if headline]
+    avg_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+    return avg_sentiment
+
+
+def get_atr(ticker):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period="14d", interval="1h")
+    if len(hist) < 14:
+        return 1
+    atr = ta.atr(hist['High'], hist['Low'], hist['Close'], length=14)
+    return atr.iloc[-1]
+
+
+def get_ema_signals(ticker):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period="10d", interval="15m")
+    if hist.empty:
+        return False
+
+    ema_short = ta.ema(hist['Close'], length=EMA_SHORT).iloc[-1]
+    ema_long = ta.ema(hist['Close'], length=EMA_LONG).iloc[-1]
+
+    return ema_short > ema_long
+
+
+def get_rsi(ticker):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period="10d", interval="15m")
+    if len(hist) < 14:
+        return 50
+
+    rsi = ta.rsi(hist['Close'], length=14)
+    return rsi.iloc[-1]
+
+
+def score_stock(row):
+    score = 0
+
+    if row['premarket_volume'] >= PREMARKET_VOLUME_MIN:
+        score += 1
+    if GAP_UP_MIN <= row['gap_up'] <= GAP_UP_MAX:
+        score += 1
+    if row['rvol'] >= RVOL_THRESHOLD:
+        score += 1
+    if row['float'] <= 500e6:
+        score += 1
+    if ATR_MIN <= get_atr(row['ticker']) <= ATR_MAX:
+        score += 1
+    if row['premarket_range'] >= PREMARKET_RANGE_MIN:
+        score += 1
+    if get_ema_signals(row['ticker']):
+        score += 1
+    if get_rsi(row['ticker']) > 50:
+        score += 1
+    sentiment = get_news_sentiment(row['ticker'])
+    score += sentiment * 2
+
+    return score
+
+
+def get_trade_plan(ticker, price):
+    atr = get_atr(ticker)
+    stop_loss = price - (ATR_MULTIPLIER * atr)
+    target = price + (ATR_MULTIPLIER * atr)
+    return price, round(stop_loss, 2), round(target, 2)
+
+
+def run_screener():
+    data = get_premarket_data()
+    if data.empty:
+        return []
+
+    data['score'] = data.apply(score_stock, axis=1)
+    data = data.sort_values('score', ascending=False).head(5)
+
+    plans = []
+    for _, row in data.iterrows():
+        entry, stop, target = get_trade_plan(row['ticker'], row['price'])
+        plans.append({
+            'ticker': row['ticker'],
+            'score': row['score'],
+            'entry': round(entry, 2),
+            'stop_loss': stop,
+            'target': target
+        })
+
+    return plans
+
+
+# --- STREAMLIT INTERFACE ---
+st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
+
+if st.button('Run Screener'):
+    trade_plans = run_screener()
+    if not trade_plans:
+        st.error("No qualifying stocks found.")
+    for plan in trade_plans:
+        st.subheader(plan['ticker'])
+        st.write(f"Score: {plan['score']}")
+        st.write(f"Entry Price: ${plan['entry']}")
+        st.write(f"Stop Loss: ${plan['stop_loss']}")
+        st.write(f"Target Price: ${plan['target']}")
+        message = (
+            f"{plan['ticker']} | Score: {plan['score']}\n"
+            f"Entry: ${plan['entry']} | Stop Loss: ${plan['stop_loss']} | Target: ${plan['target']}"
+        )
