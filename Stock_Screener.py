@@ -29,13 +29,14 @@ ATR_MULTIPLIER = 1.5
 RISK_PERCENTAGE = 0.02
 MIN_FLOAT = 50_000_000
 RSI_MIN, RSI_MAX = 40, 70
+EXCLUDED_TICKERS = ['ALLY']
 
 # --- FUNCTIONS ---
 def get_premarket_top_gainers():
     fmp_api = st.secrets["FMP_Key"]
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
-    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item]
+    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item and item['symbol'] not in EXCLUDED_TICKERS]
     return tickers
 
 
