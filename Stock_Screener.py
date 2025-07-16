@@ -32,7 +32,7 @@ RSI_MIN, RSI_MAX = 40, 70
 
 # --- FUNCTIONS ---
 def get_premarket_top_gainers():
-    fmp_api = os.getenv('FMP_Key')
+    fmp_api = st.secrets("FMP_Key")
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
     tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item]
@@ -79,7 +79,7 @@ def get_premarket_data():
 
 
 def get_news_sentiment(ticker):
-    api_key = os.getenv('NewsAPI_Key')
+    api_key = os.st.secrets('NewsAPI_Key')
     url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
     response = requests.get(url)
 
