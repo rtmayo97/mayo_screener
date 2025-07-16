@@ -1,4 +1,4 @@
-# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Enhanced with Protective Filters and Scaling Logic
+# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Full Version with API Integrations, Scaling Logic, and Protective Filters
 
 import sys
 import requests
@@ -14,7 +14,7 @@ load_dotenv()
 
 # --- CONFIGURATIONS ---
 PRICE_MIN = 20
-DYNAMIC_PRICE_MAX = True  # Enable scaling of PRICE_MAX based on capital
+DYNAMIC_PRICE_MAX = True
 INITIAL_PRICE_MAX = 175
 PREMARKET_VOLUME_MIN = 1000000
 GAP_UP_MIN = 2.0
@@ -34,14 +34,36 @@ EXCLUDED_TICKERS = ['ALLY']
 MIN_SENTIMENT_SCORE = 0.2
 MAX_SPREAD_PERCENT = 0.005
 EARNINGS_LOOKAHEAD_DAYS = 3
-MAX_SHARES_PER_TRADE = 2000  # Limit share count to reduce slippage
+MAX_SHARES_PER_TRADE = 2000
+
+
+def get_premarket_top_gainers():
+    fmp_api = st.secrets['FMP_Key']
+    url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
+    response = requests.get(url)
+    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item and item['symbol'] not in EXCLUDED_TICKERS]
+    return tickers
+
+
+def get_news_sentiment(ticker):
+    api_key = st.secrets['NewsAPI_Key']
+    url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        return 0
+
+    articles = response.json().get('articles', [])
+    headlines = [article['title'] for article in articles]
+    sentiment_scores = [TextBlob(headline).sentiment.polarity for headline in headlines if headline]
+    return sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
 
 
 def determine_price_max(capital):
     if not DYNAMIC_PRICE_MAX:
         return INITIAL_PRICE_MAX
     scaling_factor = capital * RISK_PERCENTAGE
-    return scaling_factor / 5  # Target up to 5 shares at max price
+    return scaling_factor / 5
 
 
 def calculate_shares(investment_amount, price, stop_loss):
@@ -51,6 +73,49 @@ def calculate_shares(investment_amount, price, stop_loss):
         return 0
     shares = int(risk_amount // per_share_risk)
     return min(shares, MAX_SHARES_PER_TRADE)
+
+
+def get_atr(ticker):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period="14d", interval="1h")
+    atr = ta.atr(hist['High'], hist['Low'], hist['Close'], length=14)
+    return atr.iloc[-1] if not atr.empty else 1
+
+
+def get_trade_plan(ticker, price):
+    atr = get_atr(ticker)
+    stop_loss = price - (ATR_MULTIPLIER * atr)
+    target = price + (ATR_MULTIPLIER * atr)
+    return price, round(stop_loss, 2), round(target, 2)
+
+
+def score_stock(row):
+    score = 0
+    if row['premarket_volume'] >= PREMARKET_VOLUME_MIN:
+        score += 1
+    if GAP_UP_MIN <= row['gap_up'] <= GAP_UP_MAX:
+        score += 1
+    if row['rvol'] >= RVOL_THRESHOLD:
+        score += 1
+    if MIN_FLOAT <= row['float'] <= MAX_FLOAT:
+        score += 1
+    if ATR_MIN <= get_atr(row['ticker']) <= ATR_MAX:
+        score += 1
+    if row['premarket_range_percent'] >= PREMARKET_RANGE_MIN_PERCENT:
+        score += 1
+    if get_news_sentiment(row['ticker']) >= MIN_SENTIMENT_SCORE:
+        score += 1
+    return score
+
+
+def get_market_trend():
+    spy = yf.Ticker('SPY').history(period='1d', interval='5m')
+    qqq = yf.Ticker('QQQ').history(period='1d', interval='5m')
+
+    spy_above_vwap = spy['Close'].iloc[-1] > spy['Close'].mean()
+    qqq_above_vwap = qqq['Close'].iloc[-1] > qqq['Close'].mean()
+
+    return spy_above_vwap, qqq_above_vwap
 
 
 def get_premarket_data(price_max):
@@ -92,12 +157,6 @@ def get_premarket_data(price_max):
     return pd.DataFrame(data)
 
 
-st.title('Mayo Stock Screener & Trade Planner')
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0)
-st.write(f'Investment Amount Entered: ${investment_amount:,.2f}')
-
-
-
 def run_screener(investment_amount):
     price_max = determine_price_max(investment_amount)
     data = get_premarket_data(price_max)
@@ -128,17 +187,11 @@ def run_screener(investment_amount):
         })
     return plans
 
-def get_market_trend():
-    spy = yf.Ticker('SPY').history(period='1d', interval='5m')
-    qqq = yf.Ticker('QQQ').history(period='1d', interval='5m')
 
-    spy_above_vwap = spy['Close'].iloc[-1] > spy['Close'].mean()
-    qqq_above_vwap = qqq['Close'].iloc[-1] > qqq['Close'].mean()
+# --- STREAMLIT INTERFACE ---
+st.title('Mayo Stock Screener & Trade Planner')
 
-    return spy_above_vwap, qqq_above_vwap
-
-
-# Add to your existing STREAMLIT interface:
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0, format="%0.2f")
 
 if st.button('Run Screener'):
     spy_trend, qqq_trend = get_market_trend()
@@ -160,7 +213,7 @@ if st.button('Run Screener'):
 
         if spy_trend and qqq_trend:
             st.write("Trending WITH the Market")
-        elif not spy_trend and plan['vwap_status']:
-            st.write("Trending ABOVE the Market")
-        else:
+        elif not spy_trend:
             st.write("Trending AGAINST the Market")
+        else:
+            st.write("Trending ABOVE the Market")
