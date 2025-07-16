@@ -189,7 +189,7 @@ def run_screener(investment_amount):
 # --- STREAMLIT INTERFACE ---
 st.title('Mayo Stock Screener & Trade Planner')
 
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0, format="%0.2f")
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0, st.write(f'Investment Amount Entered: ${investment_amount:,.2f}'))
 
 if st.button('Run Screener'):
     spy_trend, qqq_trend = get_market_trend()
