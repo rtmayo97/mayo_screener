@@ -34,7 +34,6 @@ MAX_SPREAD_PERCENT = 0.005
 EARNINGS_LOOKAHEAD_DAYS = 3
 MAX_SHARES_PER_TRADE = 2000
 
-
 def get_premarket_top_gainers():
     fmp_api = st.secrets['FMP_Key']
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
@@ -89,21 +88,61 @@ def get_trade_plan(ticker, price):
 
 def score_stock(row):
     score = 0
+    max_score = 10
+
+    # Weights total 10
+    weights = {
+        'premarket_volume': 1.0,
+        'gap_up': 1.5,
+        'rvol': 1.0,
+        'float': 1.0,
+        'atr': 1.0,
+        'premarket_range': 1.0,
+        'sentiment': 1.5,
+        'spread': 1.0,
+        'price': 1.0
+    }
+
+    # 1. Premarket Volume
     if row['premarket_volume'] >= PREMARKET_VOLUME_MIN:
-        score += 1
+        score += weights['premarket_volume']
+
+    # 2. Gap Up %
     if GAP_UP_MIN <= row['gap_up'] <= GAP_UP_MAX:
-        score += 1
+        score += weights['gap_up']
+
+    # 3. RVOL
     if row['rvol'] >= RVOL_THRESHOLD:
-        score += 1
+        score += weights['rvol']
+
+    # 4. Float
     if MIN_FLOAT <= row['float'] <= MAX_FLOAT:
-        score += 1
-    if ATR_MIN <= get_atr(row['ticker']) <= ATR_MAX:
-        score += 1
+        score += weights['float']
+
+    # 5. ATR
+    atr = get_atr(row['ticker'])
+    if ATR_MIN <= atr <= ATR_MAX:
+        score += weights['atr']
+
+    # 6. Premarket Range %
     if row['premarket_range_percent'] >= PREMARKET_RANGE_MIN_PERCENT:
-        score += 1
-    if get_news_sentiment(row['ticker']) >= MIN_SENTIMENT_SCORE:
-        score += 1
-    return score
+        score += weights['premarket_range']
+
+    # 7. Sentiment
+    sentiment = get_news_sentiment(row['ticker'])
+    if sentiment >= MIN_SENTIMENT_SCORE:
+        score += weights['sentiment']
+
+    # 8. Spread
+    spread = get_spread(row['ticker'])
+    if spread <= MAX_SPREAD_PERCENT:
+        score += weights['spread']
+
+    # 9. Price
+    if PRICE_MIN <= row['price'] <= determine_price_max(investment_amount):
+        score += weights['price']
+
+    return round(score, 2)
 
 
 def get_market_trend():
@@ -202,6 +241,7 @@ if st.button('Run Screener'):
         st.error("No qualifying stocks found.")
     for plan in trade_plans:
         st.subheader(plan['ticker'])
+        st.write(f"Score: {plan['score']}/10")
         st.write(f"Entry Price: ${plan['entry']:,}")
         st.write(f"Stop Loss: ${plan['stop_loss']:,}")
         st.write(f"Target Price: ${plan['target']:,}")
@@ -213,6 +253,6 @@ if st.button('Run Screener'):
         if spy_trend and qqq_trend:
             st.write("Trending WITH the Market")
         elif not spy_trend:
-            st.write("Trending AGAINST the Market")
+            st.write("Trending LOWER than the Market")
         else:
             st.write("Trending ABOVE the Market")
