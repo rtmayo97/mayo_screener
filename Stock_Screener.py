@@ -10,8 +10,6 @@ from textblob import TextBlob
 import streamlit as st
 import os
 
-load_dotenv()
-
 # --- CONFIGURATIONS ---
 PRICE_MIN = 20
 DYNAMIC_PRICE_MAX = True
