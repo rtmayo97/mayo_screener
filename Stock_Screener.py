@@ -68,8 +68,13 @@ def calculate_shares(investment_amount, price, stop_loss):
     per_share_risk = price - stop_loss
     if per_share_risk <= 0:
         return 0
-    shares = int(risk_amount // per_share_risk)
-    return min(shares, MAX_SHARES_PER_TRADE)
+
+    max_shares_by_risk = int(risk_amount // per_share_risk)
+    max_shares_by_investment = int(investment_amount // price)
+
+    shares = min(max_shares_by_risk, max_shares_by_investment, MAX_SHARES_PER_TRADE)
+    return shares
+
 
 
 def get_atr(ticker):
