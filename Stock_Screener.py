@@ -33,7 +33,7 @@ def get_premarket_top_gainers():
     fmp_api = os.getenv('FMP_Key')
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
-    tickers = [item['symbol'] for item in response.json()[:50]]  # Top 50 by volume
+    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item]  # Top 50 by volume
     return tickers
 
 
@@ -196,7 +196,7 @@ def run_screener(investment_amount):
 # --- STREAMLIT INTERFACE ---
 st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
 
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=10000.0, step=100.0)
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0)
 
 if st.button('Run Screener'):
     trade_plans = run_screener(investment_amount)
