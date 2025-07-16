@@ -1,4 +1,4 @@
-# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Enhanced Indicators for Pre-market
+# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Enhanced with Protective Filters
 
 import sys
 import requests
@@ -17,44 +17,25 @@ load_dotenv()
 PRICE_MIN = 50
 PRICE_MAX = 175
 PREMARKET_VOLUME_MIN = 1000000
-GAP_UP_MIN = 2.0  # %
-GAP_UP_MAX = 10.0  # % upper threshold
+GAP_UP_MIN = 2.0
+GAP_UP_MAX = 10.0
 RVOL_THRESHOLD = 1.5
 ATR_MIN = 1
 ATR_MAX = 3
 PREMARKET_RANGE_MIN = 0.5
 EMA_SHORT = 9
 EMA_LONG = 20
-ATR_MULTIPLIER = 1.5  # Dynamic stop loss multiplier
-RISK_PERCENTAGE = 0.02  # 2% of investment per trade
+ATR_MULTIPLIER = 1.5
+RISK_PERCENTAGE = 0.02
+MIN_FLOAT = 50_000_000
+RSI_MIN, RSI_MAX = 40, 70
 
-# --- FUNCTIONS TO FETCH DATA ---
+# --- FUNCTIONS ---
 def get_premarket_top_gainers():
-    try:
-        response = requests.get(your_api_url, timeout=5)
-
-        if not isinstance(response, requests.Response):
-            print("Invalid response object:", response)
-            return []
-
-        if response.status_code != 200:
-            print(f"API error: {response.status_code} - {response.text}")
-            return []
-
-        data = response.json()
-        if isinstance(data, list):
-            return [item['symbol'] for item in data[:50] if 'symbol' in item]
-        else:
-            print("Unexpected response format:", data)
-            return []
-
-    except Exception as e:
-        print(f"Exception occurred during API request: {e}")
-        return []
     fmp_api = os.getenv('FMP_Key')
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
-    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item]  # Top 50 by volume
+    tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item]
     return tickers
 
 
@@ -71,7 +52,7 @@ def get_premarket_data():
                 continue
 
             close_prices = hist['Close'].dropna().tail(5)
-            avg_premarket_price = close_prices.mean() if not close_prices.empty else stock.history(period='2d')['Close'][-2]
+            avg_premarket_price = close_prices.mean()
 
             if not (PRICE_MIN <= avg_premarket_price <= PRICE_MAX):
                 continue
@@ -92,7 +73,7 @@ def get_premarket_data():
                 'sector': stock.info.get('sector', 'Unknown'),
                 'premarket_range': premarket_range,
             })
-        except Exception as e:
+        except Exception:
             continue
     return pd.DataFrame(data)
 
@@ -108,17 +89,14 @@ def get_news_sentiment(ticker):
     articles = response.json().get('articles', [])
     headlines = [article['title'] for article in articles]
     sentiment_scores = [TextBlob(headline).sentiment.polarity for headline in headlines if headline]
-    avg_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
-    return avg_sentiment
+    return sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
 
 
 def get_atr(ticker):
     stock = yf.Ticker(ticker)
     hist = stock.history(period="14d", interval="1h")
-    if len(hist) < 14:
-        return 1
     atr = ta.atr(hist['High'], hist['Low'], hist['Close'], length=14)
-    return atr.iloc[-1]
+    return atr.iloc[-1] if not atr.empty else 1
 
 
 def get_ema_signals(ticker):
@@ -136,23 +114,19 @@ def get_ema_signals(ticker):
 def get_rsi(ticker):
     stock = yf.Ticker(ticker)
     hist = stock.history(period="10d", interval="15m")
-    if len(hist) < 14:
-        return 50
-
     rsi = ta.rsi(hist['Close'], length=14)
-    return rsi.iloc[-1]
+    return rsi.iloc[-1] if not rsi.empty else 50
 
 
 def score_stock(row):
     score = 0
-
     if row['premarket_volume'] >= PREMARKET_VOLUME_MIN:
         score += 1
     if GAP_UP_MIN <= row['gap_up'] <= GAP_UP_MAX:
         score += 1
     if row['rvol'] >= RVOL_THRESHOLD:
         score += 1
-    if row['float'] <= 500e6:
+    if row['float'] >= MIN_FLOAT:
         score += 1
     if ATR_MIN <= get_atr(row['ticker']) <= ATR_MAX:
         score += 1
@@ -160,10 +134,11 @@ def score_stock(row):
         score += 1
     if get_ema_signals(row['ticker']):
         score += 1
-    if get_rsi(row['ticker']) > 50:
+    rsi = get_rsi(row['ticker'])
+    if RSI_MIN <= rsi <= RSI_MAX:
         score += 1
-    sentiment = get_news_sentiment(row['ticker'])
-    score += sentiment * 2
+    if get_news_sentiment(row['ticker']) >= 0:
+        score += 1
 
     return score
 
@@ -178,9 +153,7 @@ def get_trade_plan(ticker, price):
 def calculate_shares(investment_amount, price, stop_loss):
     risk_amount = investment_amount * RISK_PERCENTAGE
     per_share_risk = price - stop_loss
-    if per_share_risk == 0:
-        return 0
-    return int(risk_amount // per_share_risk)
+    return int(risk_amount // per_share_risk) if per_share_risk > 0 else 0
 
 
 def run_screener(investment_amount):
@@ -210,12 +183,11 @@ def run_screener(investment_amount):
             'potential_profit': round(potential_profit, 2),
             'potential_loss': round(potential_loss, 2)
         })
-
     return plans
 
 
 # --- STREAMLIT INTERFACE ---
-st.title('AI Stock Screener & Trade Planner - Top 5 Enhanced Scan')
+st.title('AI Stock Screener & Trade Planner - Enhanced Filters')
 
 investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0)
 
@@ -233,8 +205,3 @@ if st.button('Run Screener'):
         st.write(f"Total Investment: ${plan['total_invested']}")
         st.write(f"Potential Profit: ${plan['potential_profit']}")
         st.write(f"Potential Loss: ${plan['potential_loss']}")
-        message = (
-            f"{plan['ticker']} | Score: {plan['score']}\n"
-            f"Entry: ${plan['entry']} | Stop Loss: ${plan['stop_loss']} | Target: ${plan['target']} | Shares: {plan['shares']}\n"
-            f"Total Investment: ${plan['total_invested']} | Potential Profit: ${plan['potential_profit']} | Potential Loss: ${plan['potential_loss']}"
-        )
