@@ -78,6 +78,14 @@ def get_atr(ticker):
     atr = ta.atr(hist['High'], hist['Low'], hist['Close'], length=14)
     return atr.iloc[-1] if not atr.empty else 1
 
+def get_spread(ticker):
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    ask = info.get('ask', 0)
+    bid = info.get('bid', 0)
+    if ask > 0 and bid > 0:
+        return (ask - bid) / ((ask + bid) / 2)
+    return 0
 
 def get_trade_plan(ticker, price):
     atr = get_atr(ticker)
