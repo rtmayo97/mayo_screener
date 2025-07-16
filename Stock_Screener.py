@@ -92,6 +92,8 @@ def get_premarket_data(price_max):
             continue
     return pd.DataFrame(data)
 
+investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=1000.0, step=100.0, format="%0.2f")
+
 
 def run_screener(investment_amount):
     price_max = determine_price_max(investment_amount)
