@@ -123,6 +123,16 @@ def run_screener(investment_amount):
         })
     return plans
 
+def get_market_trend():
+    spy = yf.Ticker('SPY').history(period='1d', interval='5m')
+    qqq = yf.Ticker('QQQ').history(period='1d', interval='5m')
+
+    spy_above_vwap = spy['Close'].iloc[-1] > spy['Close'].mean()
+    qqq_above_vwap = qqq['Close'].iloc[-1] > qqq['Close'].mean()
+
+    return spy_above_vwap, qqq_above_vwap
+
+
 # Add to your existing STREAMLIT interface:
 
 if st.button('Run Screener'):
