@@ -31,16 +31,16 @@ RISK_PERCENTAGE = 0.02  # 2% of investment per trade
 # --- FUNCTIONS TO FETCH DATA ---
 def get_premarket_top_gainers():
     try:
-        response = requests.get(your_api_url)
+        response = requests.get(your_api_url, timeout=5)
 
-        if response is None:
-            print("No response received from API.")
+        if not isinstance(response, requests.Response):
+            print("Invalid response object:", response)
             return []
 
         if response.status_code != 200:
-            print(f"API error: {response.status_code} - {getattr(response, 'text', 'No text')}")
+            print(f"API error: {response.status_code} - {response.text}")
             return []
-        
+
         data = response.json()
         if isinstance(data, list):
             return [item['symbol'] for item in data[:50] if 'symbol' in item]
