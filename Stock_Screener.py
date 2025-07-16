@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- CONFIGURATIONS ---
-PRICE_MIN = 50
+PRICE_MIN = 20
 PRICE_MAX = 175
 PREMARKET_VOLUME_MIN = 1000000
 GAP_UP_MIN = 2.0
