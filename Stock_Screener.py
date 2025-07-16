@@ -196,8 +196,6 @@ st.write(f'Investment Amount Entered: ${investment_amount:,.2f}')
 
 if st.button('Run Screener'):
     spy_trend, qqq_trend = get_market_trend()
-    st.write(f"SPY Above VWAP: {'Yes' if spy_trend else 'No'}")
-    st.write(f"QQQ Above VWAP: {'Yes' if qqq_trend else 'No'}")
 
     trade_plans = run_screener(investment_amount)
     if not trade_plans:
