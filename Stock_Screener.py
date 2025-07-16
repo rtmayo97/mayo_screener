@@ -79,7 +79,7 @@ def get_premarket_data():
 
 
 def get_news_sentiment(ticker):
-    api_key = os.st.secrets('NewsAPI_Key')
+    api_key = st.secrets("NewsAPI_Key")
     url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
     response = requests.get(url)
 
