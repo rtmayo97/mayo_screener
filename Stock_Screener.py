@@ -9,6 +9,9 @@ import yfinance as yf
 from textblob import TextBlob
 import streamlit as st
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- CONFIGURATIONS ---
 PRICE_MIN = 50
@@ -159,7 +162,7 @@ def run_screener(investment_amount):
         return []
 
     data['score'] = data.apply(score_stock, axis=1)
-    data = data.sort_values('score', ascending=False).head(5)
+    data = data.sort_values('score', ascending=False).head(10)
 
     plans = []
     for _, row in data.iterrows():
