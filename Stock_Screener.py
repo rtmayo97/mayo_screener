@@ -30,21 +30,26 @@ RISK_PERCENTAGE = 0.02  # 2% of investment per trade
 
 # --- FUNCTIONS TO FETCH DATA ---
 def get_premarket_top_gainers():
-    response = requests.get(your_api_url)
-    
-    if response.status_code != 200:
-        print(f"API error: {response.status_code} - {response.text}")
-        return []
-    
     try:
+        response = requests.get(your_api_url)
+
+        if not response:
+            print("No response received from API.")
+            return []
+
+        if response.status_code != 200:
+            print(f"API error: {response.status_code} - {getattr(response, 'text', 'No text')}")
+            return []
+        
         data = response.json()
         if isinstance(data, list):
             return [item['symbol'] for item in data[:50] if 'symbol' in item]
         else:
             print("Unexpected response format:", data)
             return []
+    
     except Exception as e:
-        print(f"Failed to parse JSON: {e}")
+        print(f"Exception occurred during API request: {e}")
         return []
     fmp_api = os.getenv('FMP_Key')
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
