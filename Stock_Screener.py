@@ -33,7 +33,7 @@ def get_premarket_top_gainers():
     try:
         response = requests.get(your_api_url)
 
-        if not response:
+        if response is None:
             print("No response received from API.")
             return []
 
@@ -47,7 +47,7 @@ def get_premarket_top_gainers():
         else:
             print("Unexpected response format:", data)
             return []
-    
+
     except Exception as e:
         print(f"Exception occurred during API request: {e}")
         return []
