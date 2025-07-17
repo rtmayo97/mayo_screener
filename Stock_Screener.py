@@ -11,36 +11,38 @@ import streamlit as st
 import os
 
 # --- CONFIGURATIONS ---
-PRICE_MIN = 20
-DYNAMIC_PRICE_MAX = True
-INITIAL_PRICE_MAX = 175
-PREMARKET_VOLUME_MIN = 1000000
-GAP_UP_MIN = 2.0
-GAP_UP_MAX = 10.0
-RVOL_THRESHOLD = 1.5
-ATR_MIN = 1
-ATR_MAX = 3.5
-PREMARKET_RANGE_MIN_PERCENT = 1.0
-EMA_SHORT = 9
-EMA_LONG = 20
-ATR_MULTIPLIER = 1.5
-RISK_PERCENTAGE = 0.02
-MIN_FLOAT = 50_000_000
-MAX_FLOAT = 200_000_000
-RSI_MIN, RSI_MAX = 40, 70
-EXCLUDED_TICKERS = ['ALLY']
-MIN_SENTIMENT_SCORE = 0.2
-MAX_SPREAD_PERCENT = 0.005
-EARNINGS_LOOKAHEAD_DAYS = 3
-MAX_SHARES_PER_TRADE = 2000
+PRICE_MIN = 20                     # Minimum stock price
+DYNAMIC_PRICE_MAX = True           # Dynamically set max price based on market data if True
+INITIAL_PRICE_MAX = 175            # Max stock price ceiling if DYNAMIC is False
+VOLUME_MIN = 2_000_000             # Minimum **intraday volume**, NOT premarket
+PERCENT_CHANGE_MIN = 2.0           # Intraday % change since open (NOT Percent Change Up)
+PERCENT_CHANGE_MAX = 10.0          # Max % move to avoid overextended stocks
+RVOL_THRESHOLD = 1.5               # Relative volume compared to average volume
+ATR_MIN = 1                        # Minimum ATR (avoid too stable/flat stocks)
+ATR_MAX = 3.5                      # Max ATR (avoid excessive volatility)
+market_RANGE_MIN_PERCENT = 1.0     # Minimum intraday price range % to ensure movement
+EMA_SHORT = 9                      # For trend confirmation
+EMA_LONG = 20                      # For trend confirmation
+ATR_MULTIPLIER = 1.5               # For price target bounds over historical highs/lows
+RISK_PERCENTAGE = 0.02             # Risk per trade (2% of capital)
+MIN_FLOAT = 50_000_000             # Exclude low float stocks (avoid pump/dumps)
+MAX_FLOAT = 200_000_000            # Cap float for mid-cap range stocks
+RSI_MIN = 40 
+RSI_MAX = 70                       # RSI window for 'neutral to bullish' zone
+EXCLUDED_TICKERS = ['ALLY']        # Exclude personal or illiquid tickers
+MIN_SENTIMENT_SCORE = 0.2          # Optional: ensure positive news/sentiment
+MAX_SPREAD_PERCENT = 0.005         # Max bid/ask spread (0.5%) of price
+# E.g. $100 stock = max $0.50 spread
+EARNINGS_LOOKAHEAD_DAYS = 3        # Filter out stocks with earnings upcoming in X days
+MAX_SHARES_PER_TRADE = 2000        # Position sizing cap per trade
 
-def get_premarket_top_gainers():
+
+def get_market_top_gainers():
     fmp_api = st.secrets['FMP_Key']
     url = f'https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={fmp_api}'
     response = requests.get(url)
     tickers = [item['symbol'] for item in response.json()[:50] if 'symbol' in item and item['symbol'] not in EXCLUDED_TICKERS]
     return tickers
-
 
 def get_news_sentiment(ticker):
     api_key = st.secrets['NewsAPI_Key']
@@ -98,31 +100,46 @@ def get_trade_plan(ticker, price):
     target = price + (ATR_MULTIPLIER * atr)
     return price, round(stop_loss, 2), round(target, 2)
 
+def validate_price_target(target_price, historical_high, atr, buffer_multiplier=1.5):
+    max_reasonable_price = historical_high + (atr * buffer_multiplier)
+    return min(target_price, max_reasonable_price)
+
+def is_within_recent_range(current_price, historical_high, historical_low, atr, buffer_multiplier=1.5):
+    upper_bound = historical_high + (atr * buffer_multiplier)
+    lower_bound = historical_low - (atr * buffer_multiplier)
+    return lower_bound <= current_price <= upper_bound
+
+def get_recent_high_low(price_data, days=5):
+    recent_data = price_data[-(days * 78:]  # Adjust periods per day
+    highs = [bar['high'] for bar in recent_data]
+    lows = [bar['low'] for bar in recent_data]
+    return max(highs), min(lows)
 
 def score_stock(row):
     score = 0
     max_score = 10
 
+    
     # Weights total 10
     weights = {
-        'premarket_volume': 1.0,
-        'gap_up': 1.5,
+        'market_volume': 1.0,
+        'percent_change_up': 1.5,
         'rvol': 1.0,
         'float': 1.0,
         'atr': 1.0,
-        'premarket_range': 1.0,
+        'market_range': 1.0,
         'sentiment': 1.5,
         'spread': 1.0,
         'price': 1.0
     }
 
-    # 1. Premarket Volume
-    if row['premarket_volume'] >= PREMARKET_VOLUME_MIN:
-        score += weights['premarket_volume']
+    # 1. market Volume
+    if row['market_volume'] >= MARKET_VOLUME_MIN:
+        score += weights['market_volume']
 
-    # 2. Gap Up %
-    if GAP_UP_MIN <= row['gap_up'] <= GAP_UP_MAX:
-        score += weights['gap_up']
+    # 2. Percent Change Up %
+    if PERCENT_CHANGE_MIN <= row['percent_change_up'] <= PERCENT_CHANGE_MAX:
+        score += weights['percent_change_up']
 
     # 3. RVOL
     if row['rvol'] >= RVOL_THRESHOLD:
@@ -137,9 +154,9 @@ def score_stock(row):
     if ATR_MIN <= atr <= ATR_MAX:
         score += weights['atr']
 
-    # 6. Premarket Range %
-    if row['premarket_range_percent'] >= PREMARKET_RANGE_MIN_PERCENT:
-        score += weights['premarket_range']
+    # 6. Market Range %
+    if row['market_range_percent'] >= market_RANGE_MIN_PERCENT:
+        score += weights['market_range']
 
     # 7. Sentiment
     sentiment = get_news_sentiment(row['ticker'])
@@ -168,48 +185,47 @@ def get_market_trend():
     return spy_above_vwap, qqq_above_vwap
 
 
-def get_premarket_data(price_max):
-    tickers = get_premarket_top_gainers()
+def get_market_data(price_max):
+    tickers = get_market_top_gainers()
     data = []
     for ticker in tickers:
         try:
             stock = yf.Ticker(ticker)
             hist = stock.history(period="1d", interval="5m", prepost=True)
-            premarket_volume = hist['Volume'][:30].sum()
+            market_volume = hist['Volume'][:30].sum()
 
             if hist.empty:
                 continue
 
             close_prices = hist['Close'].dropna().tail(5)
-            avg_premarket_price = close_prices.mean()
+            avg_market_price = close_prices.mean()
 
-            if not (PRICE_MIN <= avg_premarket_price <= price_max):
+            if not (PRICE_MIN <= avg_market_price <= price_max):
                 continue
 
             prev_close = stock.history(period='2d')['Close'][-2]
-            gap_up = ((avg_premarket_price - prev_close) / prev_close) * 100
-            rvol = premarket_volume / (stock.info['averageVolume'] or 1)
+            percent_change_up = ((avg_market_price - prev_close) / prev_close) * 100
+            rvol = market_volume / (stock.info['averageVolume'] or 1)
 
-            premarket_range_percent = ((hist['High'].max() - hist['Low'].min()) / prev_close) * 100
+            market_range_percent = ((hist['High'].max() - hist['Low'].min()) / prev_close) * 100
 
             data.append({
                 'ticker': ticker,
-                'price': avg_premarket_price,
-                'premarket_volume': premarket_volume,
-                'gap_up': gap_up,
+                'price': avg_market_price,
+                'market_volume': market_volume,
+                'percent_change_up': percent_change_up,
                 'rvol': rvol,
                 'float': stock.info.get('sharesOutstanding', 1),
                 'sector': stock.info.get('sector', 'Unknown'),
-                'premarket_range_percent': premarket_range_percent,
+                'market_range_percent': market_range_percent,
             })
         except Exception:
             continue
     return pd.DataFrame(data)
 
-
 def run_screener(investment_amount):
     price_max = determine_price_max(investment_amount)
-    data = get_premarket_data(price_max)
+    data = get_market_data(price_max)
     if data.empty:
         return []
 
