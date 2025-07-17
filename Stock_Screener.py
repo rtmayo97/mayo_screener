@@ -70,8 +70,14 @@ def get_percent_change(ticker):
 
 
 def get_rvol(ticker):
-    url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
-    data = requests.get(url).json().get('results', [])
+    """Fetch RVOL, safely handle API errors."""
+    try:
+        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
+        response = requests.get(url)
+        data = response.json().get('results', [])
+    except Exception as e:
+        print(f"Error fetching RVOL for {ticker}: {e}")
+        return 0  # fallback if API fails
 
     if len(data) < 21:
         return 0
@@ -80,6 +86,7 @@ def get_rvol(ticker):
     avg_vol = sum(day['v'] for day in data[1:21]) / 20
 
     return round(current_vol / avg_vol, 2) if avg_vol else 0
+
 
 
 def get_atr(ticker):
