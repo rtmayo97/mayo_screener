@@ -58,15 +58,27 @@ def get_market_top_gainers():
     return [item['ticker'] for item in response.get('tickers', [])]
 
 def get_percent_change(ticker):
-    url_trade = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}"
-    url_prev = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}"
-    trade = requests.get(url_trade).json()
-    prev = requests.get(url_prev).json()
+    """Safely fetch percent change and current price."""
+    try:
+        url_trade = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}"
+        url_prev = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}"
 
-    current_price = trade.get('last', {}).get('price', 0)
-    prev_close = prev.get('results', [{}])[0].get('c', 0)
+        trade = requests.get(url_trade).json()
+        prev = requests.get(url_prev).json()
 
-    return ((current_price - prev_close) / prev_close * 100) if prev_close else 0, current_price
+        current_price = trade.get('last', {}).get('price', 0)
+        prev_close = prev.get('results', [{}])[0].get('c', 0)
+
+        if current_price == 0 and prev_close != 0:
+            current_price = prev_close  # fallback to previous close if current is 0
+
+        percent_change = ((current_price - prev_close) / prev_close) * 100 if prev_close else 0
+        return round(percent_change, 2), round(current_price, 2)
+
+    except Exception as e:
+        print(f"Error fetching percent change for {ticker}: {e}")
+        return 0, 0
+
 
 
 def get_rvol(ticker):
