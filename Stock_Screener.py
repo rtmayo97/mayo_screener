@@ -235,6 +235,8 @@ st.title('Mayo Stock Screener & Trade Planner')
 
 investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=50000.0, step=1000.0)
 
+st.write(f'Investment Amount Entered: ${investment_amount:,.2f}')
+
 if st.button('Run Screener'):
     spy_trend, qqq_trend = get_market_trend()
     trade_plans = run_screener(investment_amount)
