@@ -90,8 +90,14 @@ def get_rvol(ticker):
 
 
 def get_atr(ticker):
-    url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=14&apiKey={POLYGON_API_KEY}"
-    data = requests.get(url).json().get('results', [])
+    """Fetch ATR for the ticker with error handling to avoid JSON decode errors."""
+    try:
+        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=14&apiKey={POLYGON_API_KEY}"
+        response = requests.get(url)
+        data = response.json().get('results', [])
+    except Exception as e:
+        print(f"Error fetching ATR for {ticker}: {e}")
+        return 0  # fallback value
 
     if not data:
         return 0
@@ -100,6 +106,7 @@ def get_atr(ticker):
     atr = ta.atr(df['High'], df['Low'], df['Close'], length=14)
 
     return round(atr.iloc[-1], 2) if not atr.empty else 0
+
 
 
 def get_benzinga_news(ticker):
