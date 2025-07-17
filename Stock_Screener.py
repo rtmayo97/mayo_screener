@@ -117,7 +117,7 @@ def get_benzinga_news(ticker):
         data = response.json()
     except Exception as e:
         print(f"Error fetching Benzinga news for {ticker}: {e}")
-        return 'No recent News
+        return 'No recent News'
 
 
 
