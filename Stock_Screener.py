@@ -279,8 +279,8 @@ if check_password():
 
                 st.subheader(f"{ticker} Snapshot")
                 st.write({
-                    'Price': f\"${current_price:.2f}\",
-                    'Percent Change': f\"{percent_change:.2f}%\",
+                    'Price': f"${current_price:.2f}",
+                    'Percent Change': f"{percent_change:.2f}%",
                     'RVOL': rvol,
                     'ATR': atr,
                     'Benzinga News': benzinga_news,
