@@ -1,30 +1,6 @@
-# --- SIMPLE PASSWORD PROTECTION ---
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # remove password from memory
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
-        st.error("😕 Password incorrect")
-        return False
-    else:
-        return True
-
-if check_password():
-    st.title('Mayo Stock Screener & Trade Planner')
-
-
-
-
 # Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Full Version with API Integrations, Scaling Logic, and Protective Filters
 # Now enhanced to use Polygon.io for real-time price/volume and Finnhub for news/sentiment analysis
+# Also includes a simple password protection gate for secure access
 
 import sys
 import requests
@@ -50,6 +26,26 @@ EXCLUDED_TICKERS = ['ALLY']        # Exclude specific tickers
 # --- API KEYS ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']
 FINNHUB_API_KEY = st.secrets['Finnhub_Key']
+APP_PASSWORD = st.secrets['APP_PASSWORD']
+
+# --- SIMPLE PASSWORD CHECK ---
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == APP_PASSWORD:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # clear for security
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        st.error("Password incorrect")
+        return False
+    else:
+        return True
 
 # --- CORE FUNCTIONS ---
 
@@ -161,23 +157,24 @@ def run_screener(investment_amount, tickers):
     return trade_plans
 
 # --- STREAMLIT UI ---
-st.title('Mayo Stock Screener & Trade Planner')
+if check_password():
+    st.title('Mayo Stock Screener & Trade Planner')
 
-investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=50000.0, step=1000.0)
-formatted_investment = "{:,}".format(investment_amount)
-st.write(f"Investment Amount: ${formatted_investment}")
+    investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=50000.0, step=1000.0)
+    formatted_investment = "{:,}".format(investment_amount)
+    st.write(f"Investment Amount: ${formatted_investment}")
 
-tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
+    tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
 
-if st.button('Run Screener'):
-    tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
+    if st.button('Run Screener'):
+        tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
-    trade_plans = run_screener(investment_amount, tickers)
+        trade_plans = run_screener(investment_amount, tickers)
 
-    if not trade_plans:
-        st.error("No qualifying stocks found.")
-    else:
-        for plan in trade_plans:
-            st.subheader(plan['ticker'])
-            st.write(plan)
-            st.write(f"Stock is trending {plan['trend_vs_market']}")
+        if not trade_plans:
+            st.error("No qualifying stocks found.")
+        else:
+            for plan in trade_plans:
+                st.subheader(plan['ticker'])
+                st.write(plan)
+                st.write(f"Stock is trending {plan['trend_vs_market']}")
