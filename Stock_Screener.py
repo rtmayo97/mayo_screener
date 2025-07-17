@@ -110,16 +110,15 @@ def get_atr(ticker):
 
 
 def get_benzinga_news(ticker):
-    url = f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
-    response = requests.get(url).json()
-    news = response.get('news', [])
+    """Fetch latest Benzinga news headline and sentiment for the ticker with error handling."""
+    try:
+        url = f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
+        response = requests.get(url)
+        data = response.json()
+    except Exception as e:
+        print(f"Error fetching Benzinga news for {ticker}: {e}")
+        return 'No recent News
 
-    if news:
-        headline = news[0].get('title', 'No headline')
-        sentiment = news[0].get('sentiment', 0)
-        return headline, sentiment
-
-    return 'No recent Benzinga news.', 0
 
 
 def get_market_trend():
