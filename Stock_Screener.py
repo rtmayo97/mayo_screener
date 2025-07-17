@@ -30,7 +30,24 @@ BENZINGA_API_KEY = st.secrets['Benzinga_Key']
 APP_PASSWORD = st.secrets['APP_PASSWORD']
 
 # --- PASSWORD CHECK ---
-# (unchanged check_password function)
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == APP_PASSWORD:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # clear for security
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        st.error("Password incorrect")
+        return False
+    else:
+        return True
+
 
 # --- CORE FUNCTIONS ---
 
