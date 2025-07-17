@@ -51,6 +51,13 @@ def check_password():
 
 # --- CORE FUNCTIONS ---
 
+def get_market_top_gainers():
+    """Fetch top gainers from Polygon.io snapshot API."""
+    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
+    response = requests.get(url).json()
+    tickers = [item['ticker'] for item in response.get('tickers', []) if item['ticker'] not in EXCLUDED_TICKERS]
+    return tickers
+
 def get_percent_change(ticker):
     url_trade = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}"
     url_prev = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}"
@@ -198,17 +205,20 @@ if check_password():
     formatted_investment = "{:,}".format(investment_amount)
     st.write(f"Investment Amount: ${formatted_investment}")
 
-    tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
-
     if st.button('Run Screener'):
-        tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
+    st.write("Fetching top market gainers...")
+    tickers = get_market_top_gainers()
 
+    if not tickers:
+        st.error("No market gainers found from Polygon API.")
+    else:
         trade_plans = run_screener(investment_amount, tickers)
 
         if not trade_plans:
-            st.error("No qualifying stocks found.")
+            st.error("No qualifying stocks found after screening.")
         else:
-            for plan in trade_plans:
+            for plan in trade_plans[:10]:  # Show top 10
                 st.subheader(f"{plan['ticker']} (Score: {plan['score']}/10)")
                 st.write(plan)
                 st.write(f"Stock is trending {plan['trend_vs_market']}")
+
