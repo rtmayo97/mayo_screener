@@ -1,3 +1,28 @@
+# --- SIMPLE PASSWORD PROTECTION ---
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # remove password from memory
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Enter password:", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect")
+        return False
+    else:
+        return True
+
+if check_password():
+    st.title('Mayo Stock Screener & Trade Planner')
+
+
+
+
 # Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Full Version with API Integrations, Scaling Logic, and Protective Filters
 # Now enhanced to use Polygon.io for real-time price/volume and Finnhub for news/sentiment analysis
 
