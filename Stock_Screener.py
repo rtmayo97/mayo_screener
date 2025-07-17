@@ -175,21 +175,20 @@ def get_market_data(price_max):
     for ticker in tickers:
         try:
             stock = yf.Ticker(ticker)
-            hist = stock.history(period="1d", interval="5m", prepost=True)
+            hist = stock.history(period="1d", interval="5m", prepost=False)  # prepost=False for market hours only
             if hist.empty:
                 continue
 
-            market_volume = hist['Volume'].sum()
-            avg_market_price = hist['Close'].tail(5).mean()
-            prev_close = stock.history(period='2d')['Close'][-2]
-            percent_change = ((avg_market_price - prev_close) / prev_close) * 100
-            rvol = market_volume / (stock.info.get('averageVolume', 1))
-            market_range_percent = ((hist['High'].max() - hist['Low'].min()) / prev_close) * 100
+            open_price = hist['Open'].iloc[0]
+            current_price = hist['Close'].iloc[-1]
+            percent_change = ((current_price - open_price) / open_price) * 100
+            rvol = hist['Volume'].sum() / (stock.info.get('averageVolume', 1))
+            market_range_percent = ((hist['High'].max() - hist['Low'].min()) / open_price) * 100
 
-            if not (PRICE_MIN <= avg_market_price <= price_max):
+            if not (PRICE_MIN <= current_price <= price_max):
                 continue
 
-            data.append({'ticker': ticker, 'price': avg_market_price, 'market_volume': market_volume,
+            data.append({'ticker': ticker, 'price': current_price, 'market_volume': hist['Volume'].sum(),
                          'percent_change': percent_change, 'rvol': rvol, 'float': stock.info.get('sharesOutstanding', 1),
                          'market_range_percent': market_range_percent})
         except Exception:
@@ -235,8 +234,6 @@ st.title('Mayo Stock Screener & Trade Planner')
 
 investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=50000.0, step=1000.0)
 
-st.write(f'Investment Amount Entered: ${investment_amount:,.2f}')
-
 if st.button('Run Screener'):
     spy_trend, qqq_trend = get_market_trend()
     trade_plans = run_screener(investment_amount)
@@ -244,8 +241,14 @@ if st.button('Run Screener'):
     if not trade_plans:
         st.error("No qualifying stocks found.")
     else:
-        st.write(f"Market Trend - SPY: {'Above VWAP' if spy_trend else 'Below VWAP'} | QQQ: {'Above VWAP' if qqq_trend else 'Below VWAP'}")
-
         for plan in trade_plans:
             st.subheader(plan['ticker'])
             st.write(plan)
+
+            # Determine stock trend relative to market
+            if spy_trend and qqq_trend:
+                st.write("Stock is trending WITH the market")
+            elif not spy_trend and not qqq_trend:
+                st.write("Stock is trending LOWER than the market")
+            else:
+                st.write("Stock is trending HIGHER than the market")
