@@ -196,6 +196,12 @@ def run_screener(investment_amount, tickers):
 
     return sorted(trade_plans, key=lambda x: (x['score'], x['ATR']), reverse=True)
 
+def get_market_top_gainers():
+    """Fetch top market gainers from Polygon.io."""
+    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
+    response = requests.get(url).json()
+    return [item['ticker'] for item in response.get('tickers', []) if item['ticker'] not in EXCLUDED_TICKERS]
+
 
 # --- STREAMLIT UI ---
 if check_password():
@@ -205,19 +211,25 @@ if check_password():
     formatted_investment = "{:,}".format(investment_amount)
     st.write(f"Investment Amount: ${formatted_investment}")
 
-if st.button('Run Screener'):
-    st.write("Fetching top market gainers...")
-    tickers = get_market_top_gainers()
+    mode = st.selectbox('Select Mode:', ['Top 10 Market Gainers', 'Search Individual Tickers'])
 
-    if not tickers:
-        st.error("No market gainers found from Polygon API.")
-    else:
+    tickers = []
+    if mode == 'Top 10 Market Gainers':
+        st.write("Fetching top market gainers...")
+        tickers = get_market_top_gainers()
+
+    elif mode == 'Search Individual Tickers':
+        tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
+        if tickers_input:
+            tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
+
+    if st.button('Run Screener') and tickers:
         trade_plans = run_screener(investment_amount, tickers)
 
         if not trade_plans:
-            st.error("No qualifying stocks found after screening.")
+            st.error("No qualifying stocks found.")
         else:
-            for plan in trade_plans[:10]:  # Show top 10
+            for plan in trade_plans[:10]:
                 st.subheader(f"{plan['ticker']} (Score: {plan['score']}/10)")
                 st.write(plan)
                 st.write(f"Stock is trending {plan['trend_vs_market']}")
