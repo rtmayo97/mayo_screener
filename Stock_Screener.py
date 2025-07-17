@@ -205,7 +205,7 @@ if check_password():
     formatted_investment = "{:,}".format(investment_amount)
     st.write(f"Investment Amount: ${formatted_investment}")
 
-    if st.button('Run Screener'):
+if st.button('Run Screener'):
     st.write("Fetching top market gainers...")
     tickers = get_market_top_gainers()
 
