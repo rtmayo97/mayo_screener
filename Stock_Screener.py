@@ -114,10 +114,23 @@ def get_benzinga_news(ticker):
     try:
         url = f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
         response = requests.get(url)
+        if response.status_code != 200:
+            print(f"Benzinga API error for {ticker}: Status Code {response.status_code}")
+            return 'No recent Benzinga news.', 0
+
         data = response.json()
     except Exception as e:
         print(f"Error fetching Benzinga news for {ticker}: {e}")
-        return 'No recent News'
+        return 'No recent Benzinga news.', 0
+
+    news = data.get('news', [])
+    if news:
+        headline = news[0].get('title', 'No headline')
+        sentiment = news[0].get('sentiment', 0)
+        return headline, sentiment
+
+    return 'No recent Benzinga news.', 0
+
 
 
 
