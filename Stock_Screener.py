@@ -52,11 +52,10 @@ def check_password():
 # --- CORE FUNCTIONS ---
 
 def get_market_top_gainers():
-    """Fetch top gainers from Polygon.io snapshot API."""
+    """Fetch top market gainers from Polygon.io."""
     url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
     response = requests.get(url).json()
-    tickers = [item['ticker'] for item in response.get('tickers', []) if item['ticker'] not in EXCLUDED_TICKERS]
-    return tickers
+    return [item['ticker'] for item in response.get('tickers', [])]
 
 def get_percent_change(ticker):
     url_trade = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}"
@@ -211,12 +210,11 @@ if check_password():
     formatted_investment = "{:,}".format(investment_amount)
     st.write(f"Investment Amount: ${formatted_investment}")
 
-    mode = st.selectbox('Select Mode:', ['Top 10 Market Gainers', 'Search Individual Tickers'])
+    mode = st.selectbox('Select Mode:', ['Screen Full Market', 'Top 10 Market Gainers', 'Search Individual Tickers'])
 
     tickers = []
     if mode == 'Top 10 Market Gainers':
-        st.write("Fetching top market gainers...")
-        tickers = get_market_top_gainers()
+        tickers = get_market_top_gainers()[:10]
 
     elif mode == 'Search Individual Tickers':
         tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
@@ -224,13 +222,30 @@ if check_password():
             tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
     if st.button('Run Screener') and tickers:
-        trade_plans = run_screener(investment_amount, tickers)
+        if mode == 'Screen Full Market':
+            trade_plans = run_screener(investment_amount, tickers)
+            if not trade_plans:
+                st.error("No qualifying stocks found.")
+            else:
+                for plan in trade_plans:
+                    st.subheader(f"{plan['ticker']} (Score: {plan['score']}/10)")
+                    st.write(plan)
+                    st.write(f"Stock is trending {plan['trend_vs_market']}")
 
-        if not trade_plans:
-            st.error("No qualifying stocks found.")
         else:
-            for plan in trade_plans[:10]:
-                st.subheader(f"{plan['ticker']} (Score: {plan['score']}/10)")
-                st.write(plan)
-                st.write(f"Stock is trending {plan['trend_vs_market']}")
+            for ticker in tickers:
+                percent_change, current_price = get_percent_change(ticker)
+                rvol = get_rvol(ticker)
+                atr = get_atr(ticker)
+                benzinga_news, sentiment = get_benzinga_news(ticker)
+
+                st.subheader(f"{ticker} Snapshot")
+                st.write({
+                    'Price': current_price,
+                    'Percent Change': percent_change,
+                    'RVOL': rvol,
+                    'ATR': atr,
+                    'Benzinga News': benzinga_news,
+                    'Sentiment': sentiment
+                })
 
