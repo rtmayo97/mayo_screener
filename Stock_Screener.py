@@ -66,50 +66,38 @@ def get_top_gainers():
 
 def get_all_indicators(ticker):
     try:
-        trade = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}").json()
-        prev = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}").json()
+        trade_resp = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}")
+        prev_resp = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}")
 
         from datetime import date, timedelta
         end = date.today()
         start = end - timedelta(days=30)
-        stats = requests.get(
+        stats_resp = requests.get(
             f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
-        ).json()
+        )
 
-        news = requests.get(
+        news_resp = requests.get(
             f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
-        ).json()
+        )
 
-        st.write(f"✅ RAW DATA for {ticker}", {"trade": trade, "prev": prev, "stats": stats, "news": news})
+        st.write(f"📦 {ticker} trade response:", trade_resp.status_code, trade_resp.text[:300])
+        st.write(f"📦 {ticker} prev response:", prev_resp.status_code, prev_resp.text[:300])
+        st.write(f"📦 {ticker} stats response:", stats_resp.status_code, stats_resp.text[:300])
+        st.write(f"📦 {ticker} news response:", news_resp.status_code, news_resp.text[:300])
 
-        last_price = trade.get('last', {}).get('price', 0)
-        prev_close = prev.get('results', [{}])[0].get('c', 0)
-        pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
+        # Try to parse them after confirming they are JSON
+        trade = trade_resp.json()
+        prev = prev_resp.json()
+        stats = stats_resp.json()
+        news = news_resp.json()
 
-        vols = [x['v'] for x in stats.get('results', [])]
-        rvol = round(vols[0] / (sum(vols[1:21]) / 20), 2) if len(vols) > 20 else 0
-
-        highs = [x['h'] for x in stats.get('results', [])]
-        lows = [x['l'] for x in stats.get('results', [])]
-        atr = round(pd.Series([h - l for h, l in zip(highs, lows)]).mean(), 2) if highs and lows else 0
-
-        headline = news.get('news', [{}])[0].get('title', 'No recent news.') if news.get('news') else 'No recent news.'
-        sentiment = news.get('news', [{}])[0].get('sentiment', 0)
-
-        return {
-            "ticker": ticker,
-            "price": round(last_price, 2),
-            "percent_change": round(pct_change, 2),
-            "vol": vols[0] if vols else 0,
-            "rvol": rvol,
-            "atr": atr,
-            "headline": headline,
-            "sentiment": sentiment
-        }
+        # Rest of your parsing logic...
+        return {}  # Temporarily suppress logic until responses are validated
 
     except Exception as e:
         st.warning(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
+
 
 
 def fetch_and_rank():
