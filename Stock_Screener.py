@@ -38,32 +38,20 @@ def check_password():
 
 # ---------- Setup ----------
 if check_password():
-st.set_page_config(page_title="Scalping AI Assistant", layout="wide")
-st.title("📈 Trading AI Assistant — Top Trades & Journal")
+st.set_page_config(page_title="Trading AI Assistant", layout="wide")
+st.title("🤖 Smart Trading Screener & Journal")
 
-# ---------- Persistent Storage ----------
 STRATEGY_FILE = "scalping_strategy.json"
 JOURNAL_FILE = "scalping_journal.json"
 
 if not os.path.exists(STRATEGY_FILE):
-    json.dump({"min_price": 40, "max_price": 75, "min_rvol": 1.5, "min_pct_change": 2, "max_atr": 5}, open(STRATEGY_FILE, "w"))
+    json.dump({}, open(STRATEGY_FILE, "w"))
 
 if not os.path.exists(JOURNAL_FILE):
     json.dump([], open(JOURNAL_FILE, "w"))
 
 strategy = json.load(open(STRATEGY_FILE))
 journal = json.load(open(JOURNAL_FILE))
-
-# ---------- Strategy UI ----------
-st.sidebar.header("🔧 Strategy Settings")
-strategy['min_price'] = st.sidebar.number_input("Min Price", value=strategy['min_price'])
-strategy['max_price'] = st.sidebar.number_input("Max Price", value=strategy['max_price'])
-strategy['min_rvol'] = st.sidebar.number_input("Min RVOL", value=strategy['min_rvol'])
-strategy['min_pct_change'] = st.sidebar.number_input("Min % Change", value=strategy['min_pct_change'])
-strategy['max_atr'] = st.sidebar.number_input("Max ATR", value=strategy['max_atr'])
-
-with open(STRATEGY_FILE, "w") as f:
-    json.dump(strategy, f, indent=2)
 
 # ---------- Screener Logic ----------
 def get_top_gainers():
@@ -74,61 +62,64 @@ def get_top_gainers():
     except:
         return []
 
-def get_trade_data(ticker):
+def get_all_indicators(ticker):
     try:
         trade = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}").json()
         prev = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}").json()
-        price = trade['last']['price']
-        prev_close = prev['results'][0]['c']
-        pct_change = ((price - prev_close) / prev_close) * 100 if prev_close else 0
-        return round(price, 2), round(pct_change, 2)
-    except:
-        return 0, 0
+        stats = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}").json()
+        news = requests.get(f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock").json()
 
-def get_rvol(ticker):
-    try:
-        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
-        data = requests.get(url).json().get('results', [])
-        if len(data) < 21: return 0
-        current = data[0]['v']
-        avg = sum([d['v'] for d in data[1:21]]) / 20
-        return round(current / avg, 2)
-    except:
-        return 0
+        last_price = trade.get('last', {}).get('price', 0)
+        prev_close = prev.get('results', [{}])[0].get('c', 0)
+        pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
 
-def get_atr(ticker):
-    try:
-        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/14/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=14&apiKey={POLYGON_API_KEY}"
-        data = requests.get(url).json().get('results', [])
-        if not data: return 0
-        df = pd.DataFrame({'h': [d['h'] for d in data], 'l': [d['l'] for d in data], 'c': [d['c'] for d in data]})
-        df['tr'] = df[['h', 'l', 'c']].max(axis=1) - df[['h', 'l', 'c']].min(axis=1)
-        return round(df['tr'].mean(), 2)
+        vols = [x['v'] for x in stats.get('results', [])]
+        rvol = round(vols[0] / (sum(vols[1:21]) / 20), 2) if len(vols) > 20 else 0
+
+        highs = [x['h'] for x in stats.get('results', [])]
+        lows = [x['l'] for x in stats.get('results', [])]
+        closes = [x['c'] for x in stats.get('results', [])]
+        atr = round(pd.Series([h - l for h, l in zip(highs, lows)]).mean(), 2) if highs and lows else 0
+
+        headline = news.get('news', [{}])[0].get('title', 'No recent news.') if news.get('news') else 'No recent news.'
+        sentiment = news.get('news', [{}])[0].get('sentiment', 0)
+
+        return {
+            "ticker": ticker,
+            "price": round(last_price, 2),
+            "percent_change": round(pct_change, 2),
+            "vol": vol,
+            "rvol": rvol,
+            "atr": atr,
+            "headline": headline,
+            "sentiment": sentiment
+        }
     except:
-        return 0
+        return {}
 
 def fetch_and_rank():
     tickers = get_top_gainers()
     candidates = []
     for t in tickers:
-        price, change = get_trade_data(t)
-        rvol = get_rvol(t)
-        atr = get_atr(t)
-        if (strategy['min_price'] <= price <= strategy['max_price'] and
-            change >= strategy['min_pct_change'] and
-            rvol >= strategy['min_rvol'] and
-            atr <= strategy['max_atr']):
-            candidates.append({"ticker": t, "price": price, "pct_change": change, "rvol": rvol, "atr": atr})
+        data = get_all_indicators(t)
+        if data: candidates.append(data)
     return rank_with_gpt(candidates)
 
 def rank_with_gpt(candidates):
     if not candidates: return []
     prompt = f"""
-You're Mayo's personal trading assistant. Rank these stocks for scalping (1 = best) based on RVOL, price action (% change), and ATR-based volatility control:
+You're Mayo's trusted AI scalping assistant. Analyze these stocks based on:
+- % price change
+- RVOL
+- Volume
+- ATR (volatility)
+- Headline relevance & sentiment
+- Risk-reward potential
+- Any other indicator from the data that helps assess scalping quality
+
 {json.dumps(candidates, indent=2)}
-Give a sorted list of top 10 in this format:
-1. TICKER - Reason
-2. ...
+
+Rank the **top 5–10 stocks** for scalping today, with scores (1 = best), and briefly explain why for each.
 """
     res = OPENAI_CLIENT.chat.completions.create(
         model="gpt-4",
@@ -137,26 +128,54 @@ Give a sorted list of top 10 in this format:
     )
     return res.choices[0].message.content
 
-# ---------- UI Section: Top Trades ----------
-if st.button("🔍 Get Today's Top 10 Trades"):
-    with st.spinner("Analyzing market..."):
+# ---------- Strategy Suggestions ----------
+def suggest_strategy_adjustment():
+    if len(journal) < 3:
+        return "Not enough journal data to suggest changes yet."
+
+    prompt = f"""
+You're Mayo's personal trading assistant. Based on these recent journal entries, suggest 1–2 specific tweaks to the scalping strategy that could improve trade outcomes.
+Be specific with filters (like RVOL, ATR, sentiment, etc.):
+
+{json.dumps(journal[-10:], indent=2)}
+"""
+    response = OPENAI_CLIENT.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.5
+    )
+    return response.choices[0].message.content
+
+# ---------- UI: Top Trades ----------
+if st.button("🔍 Get Today's Top 10 Scalping Picks"):
+    with st.spinner("Scanning market and consulting GPT..."):
         results = fetch_and_rank()
-        st.subheader("📊 GPT-Ranked Top 10 Scalping Candidates")
+        st.subheader("🏆 GPT-Ranked Top Trades")
         st.markdown(results)
 
-# ---------- UI Section: Journal ----------
+# ---------- UI: Journal ----------
 st.markdown("---")
-st.subheader("📝 Trade Journal")
-journal_entry = st.text_area("Log a trade or insight from today:")
+st.subheader("📝 Journal")
+entry = st.text_area("Log your thoughts, wins, or strategy updates:")
 
-if st.button("Save to Journal"):
-    entry = {"timestamp": datetime.now().isoformat(), "entry": journal_entry}
-    journal.append(entry)
+if st.button("💾 Save to Journal"):
+    log = {"timestamp": datetime.now().isoformat(), "entry": entry}
+    journal.append(log)
     with open(JOURNAL_FILE, "w") as f:
         json.dump(journal, f, indent=2)
-    st.success("Saved to journal!")
+    st.success("Saved!")
 
-if st.checkbox("Show past journal entries"):
+if st.checkbox("📚 Show Past Entries"):
     for j in reversed(journal[-10:]):
         st.markdown(f"**{j['timestamp']}**\n
 {j['entry']}")
+
+# ---------- UI: Strategy Suggestion ----------
+st.markdown("---")
+st.subheader("🧠 Strategy Suggestions from GPT")
+
+if st.button("🔧 Suggest Adjustments Based on Journal"):
+    with st.spinner("Analyzing your journal..."):
+        suggestion = suggest_strategy_adjustment()
+        st.info(suggestion)
+        st.markdown("If you like the changes, apply them manually to your filters in your strategy settings.")
