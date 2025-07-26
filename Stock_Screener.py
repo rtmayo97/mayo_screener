@@ -158,7 +158,6 @@ if st.button("🔍 Get Today's Top 10 Scalping Picks"):
         results = fetch_and_rank()
         st.subheader("🏆 GPT-Ranked Top Trades")
         st.markdown(results)
-
 # ---------- UI: Journal ----------
 st.markdown("---")
 st.subheader("📝 Journal")
