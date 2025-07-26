@@ -68,9 +68,10 @@ def get_all_indicators(ticker):
     try:
         trade = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}").json()
         prev = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}").json()
-        stats = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}").json()
+        end = date.today()
+        start = end - timedelta(days=30)
+        stats = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}".json()
         news = requests.get(f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock").json()
-
         last_price = trade.get('last', {}).get('price', 0)
         prev_close = prev.get('results', [{}])[0].get('c', 0)
         pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
