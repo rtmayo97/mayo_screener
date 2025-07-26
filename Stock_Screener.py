@@ -37,7 +37,7 @@ def check_password():
         return False
     else:
         return True
-if check_password():
+
 # ---------- Setup ----------
 
 st.set_page_config(page_title="Trading AI Assistant", layout="wide")
