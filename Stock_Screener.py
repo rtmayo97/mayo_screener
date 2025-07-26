@@ -1,6 +1,5 @@
-# Comprehensive AI-Powered Stock Screener & Trade Advisor with Streamlit Interface - Final Benzinga-Only Version
-# Now includes Polygon.io for market data, Benzinga for real-time news and sentiment (if available),
-# ATR-based filtering, RVOL, scoring system, market trend comparison, and full trade planning.
+# scalping_ai_assistant.py
+# Streamlit app: Scalping Strategy Screener + Journal + AI Insights
 # Password-protected access.
 
 import sys
@@ -10,19 +9,8 @@ from datetime import datetime
 import streamlit as st
 import os
 import pandas_ta as ta
-
-# --- CONFIGURATIONS ---
-PRICE_MIN = 20                     # Minimum stock price to scan
-INITIAL_PRICE_MAX = 175            # Default max price ceiling
-PERCENT_CHANGE_MIN = 2.0           # Minimum intraday % change since open
-PERCENT_CHANGE_MAX = 10.0          # Max % change to avoid overextended stocks
-RISK_PERCENTAGE = 0.02             # Risk 2% of capital per trade
-MAX_SHARES_PER_TRADE = 2000        # Cap position size per trade
-EXCLUDED_TICKERS = ['ALLY']        # Exclude specific tickers
-ATR_MIN = 2                        # Minimum acceptable ATR value
-ATR_MAX = 5                        # Maximum acceptable ATR value
-RVOL_THRESHOLD = 1.5               # Minimum Relative Volume threshold
-ATR_MULTIPLIER = 1.5               # ATR Multiplier for stop loss and target calculation
+import openai
+import json
 
 # --- API KEYS ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']
@@ -48,242 +36,127 @@ def check_password():
     else:
         return True
 
+# ---------- Setup ----------
+if check_password():
+st.set_page_config(page_title="Scalping AI Assistant", layout="wide")
+st.title("📈 Trading AI Assistant — Top Trades & Journal")
 
-# --- CORE FUNCTIONS ---
+# ---------- Persistent Storage ----------
+STRATEGY_FILE = "scalping_strategy.json"
+JOURNAL_FILE = "scalping_journal.json"
 
-def get_market_top_gainers():
-    """Fetch top market gainers from Polygon.io."""
+if not os.path.exists(STRATEGY_FILE):
+    json.dump({"min_price": 40, "max_price": 75, "min_rvol": 1.5, "min_pct_change": 2, "max_atr": 5}, open(STRATEGY_FILE, "w"))
+
+if not os.path.exists(JOURNAL_FILE):
+    json.dump([], open(JOURNAL_FILE, "w"))
+
+strategy = json.load(open(STRATEGY_FILE))
+journal = json.load(open(JOURNAL_FILE))
+
+# ---------- Strategy UI ----------
+st.sidebar.header("🔧 Strategy Settings")
+strategy['min_price'] = st.sidebar.number_input("Min Price", value=strategy['min_price'])
+strategy['max_price'] = st.sidebar.number_input("Max Price", value=strategy['max_price'])
+strategy['min_rvol'] = st.sidebar.number_input("Min RVOL", value=strategy['min_rvol'])
+strategy['min_pct_change'] = st.sidebar.number_input("Min % Change", value=strategy['min_pct_change'])
+strategy['max_atr'] = st.sidebar.number_input("Max ATR", value=strategy['max_atr'])
+
+with open(STRATEGY_FILE, "w") as f:
+    json.dump(strategy, f, indent=2)
+
+# ---------- Screener Logic ----------
+def get_top_gainers():
     url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
-    response = requests.get(url).json()
-    return [item['ticker'] for item in response.get('tickers', [])]
-
-def get_percent_change(ticker):
-    """Safely fetch percent change and current price."""
     try:
-        url_trade = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}"
-        url_prev = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}"
+        res = requests.get(url).json()
+        return [x['ticker'] for x in res.get('tickers', [])]
+    except:
+        return []
 
-        trade = requests.get(url_trade).json()
-        prev = requests.get(url_prev).json()
-
-        current_price = trade.get('last', {}).get('price', 0)
-        prev_close = prev.get('results', [{}])[0].get('c', 0)
-
-        if current_price == 0 and prev_close != 0:
-            current_price = prev_close  # fallback to previous close if current is 0
-
-        percent_change = ((current_price - prev_close) / prev_close) * 100 if prev_close else 0
-        return round(percent_change, 2), round(current_price, 2)
-
-    except Exception as e:
-        print(f"Error fetching percent change for {ticker}: {e}")
+def get_trade_data(ticker):
+    try:
+        trade = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}").json()
+        prev = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}").json()
+        price = trade['last']['price']
+        prev_close = prev['results'][0]['c']
+        pct_change = ((price - prev_close) / prev_close) * 100 if prev_close else 0
+        return round(price, 2), round(pct_change, 2)
+    except:
         return 0, 0
 
-
-
 def get_rvol(ticker):
-    """Fetch RVOL, safely handle API errors."""
     try:
         url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
-        response = requests.get(url)
-        data = response.json().get('results', [])
-    except Exception as e:
-        print(f"Error fetching RVOL for {ticker}: {e}")
-        return 0  # fallback if API fails
-
-    if len(data) < 21:
+        data = requests.get(url).json().get('results', [])
+        if len(data) < 21: return 0
+        current = data[0]['v']
+        avg = sum([d['v'] for d in data[1:21]]) / 20
+        return round(current / avg, 2)
+    except:
         return 0
-
-    current_vol = data[0]['v']
-    avg_vol = sum(day['v'] for day in data[1:21]) / 20
-
-    return round(current_vol / avg_vol, 2) if avg_vol else 0
-
-
 
 def get_atr(ticker):
-    """Fetch ATR for the ticker with error handling to avoid JSON decode errors."""
     try:
-        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/30/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=14&apiKey={POLYGON_API_KEY}"
-        response = requests.get(url)
-        data = response.json().get('results', [])
-    except Exception as e:
-        print(f"Error fetching ATR for {ticker}: {e}")
-        return 0  # fallback value
-
-    if not data:
+        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/14/2023-01-01/2023-12-31?adjusted=true&sort=desc&limit=14&apiKey={POLYGON_API_KEY}"
+        data = requests.get(url).json().get('results', [])
+        if not data: return 0
+        df = pd.DataFrame({'h': [d['h'] for d in data], 'l': [d['l'] for d in data], 'c': [d['c'] for d in data]})
+        df['tr'] = df[['h', 'l', 'c']].max(axis=1) - df[['h', 'l', 'c']].min(axis=1)
+        return round(df['tr'].mean(), 2)
+    except:
         return 0
 
-    df = pd.DataFrame({'High': [d['h'] for d in data], 'Low': [d['l'] for d in data], 'Close': [d['c'] for d in data]})
-    atr = ta.atr(df['High'], df['Low'], df['Close'], length=14)
+def fetch_and_rank():
+    tickers = get_top_gainers()
+    candidates = []
+    for t in tickers:
+        price, change = get_trade_data(t)
+        rvol = get_rvol(t)
+        atr = get_atr(t)
+        if (strategy['min_price'] <= price <= strategy['max_price'] and
+            change >= strategy['min_pct_change'] and
+            rvol >= strategy['min_rvol'] and
+            atr <= strategy['max_atr']):
+            candidates.append({"ticker": t, "price": price, "pct_change": change, "rvol": rvol, "atr": atr})
+    return rank_with_gpt(candidates)
 
-    return round(atr.iloc[-1], 2) if not atr.empty else 0
+def rank_with_gpt(candidates):
+    if not candidates: return []
+    prompt = f"""
+You're Mayo's personal trading assistant. Rank these stocks for scalping (1 = best) based on RVOL, price action (% change), and ATR-based volatility control:
+{json.dumps(candidates, indent=2)}
+Give a sorted list of top 10 in this format:
+1. TICKER - Reason
+2. ...
+"""
+    res = OPENAI_CLIENT.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4
+    )
+    return res.choices[0].message.content
 
+# ---------- UI Section: Top Trades ----------
+if st.button("🔍 Get Today's Top 10 Trades"):
+    with st.spinner("Analyzing market..."):
+        results = fetch_and_rank()
+        st.subheader("📊 GPT-Ranked Top 10 Scalping Candidates")
+        st.markdown(results)
 
+# ---------- UI Section: Journal ----------
+st.markdown("---")
+st.subheader("📝 Trade Journal")
+journal_entry = st.text_area("Log a trade or insight from today:")
 
-def get_benzinga_news(ticker):
-    """Fetch latest Benzinga news headline and sentiment for the ticker with error handling."""
-    try:
-        url = f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
-        response = requests.get(url)
-        if response.status_code != 200:
-            print(f"Benzinga API error for {ticker}: Status Code {response.status_code}")
-            return 'No recent Benzinga news.', 0
+if st.button("Save to Journal"):
+    entry = {"timestamp": datetime.now().isoformat(), "entry": journal_entry}
+    journal.append(entry)
+    with open(JOURNAL_FILE, "w") as f:
+        json.dump(journal, f, indent=2)
+    st.success("Saved to journal!")
 
-        data = response.json()
-    except Exception as e:
-        print(f"Error fetching Benzinga news for {ticker}: {e}")
-        return 'No recent Benzinga news.', 0
-
-    news = data.get('news', [])
-    if news:
-        headline = news[0].get('title', 'No headline')
-        sentiment = news[0].get('sentiment', 0)
-        return headline, sentiment
-
-    return 'No recent Benzinga news.', 0
-
-
-
-
-def get_market_trend():
-    spy, _ = get_percent_change('SPY')
-    qqq, _ = get_percent_change('QQQ')
-    return (spy + qqq) / 2
-
-
-def calculate_shares(investment_amount, price, stop_loss):
-    risk_amount = investment_amount * RISK_PERCENTAGE
-    per_share_risk = price - stop_loss
-    if per_share_risk <= 0:
-        return 0
-
-    max_shares_by_risk = int(risk_amount // per_share_risk)
-    max_shares_by_investment = int(investment_amount // price)
-
-    return min(max_shares_by_risk, max_shares_by_investment, MAX_SHARES_PER_TRADE)
-
-
-def calculate_score(percent_change, rvol, atr, sentiment):
-    score = 0
-    if PERCENT_CHANGE_MIN <= percent_change <= PERCENT_CHANGE_MAX:
-        score += 2
-    if rvol >= RVOL_THRESHOLD:
-        score += 2
-    if ATR_MIN <= atr <= ATR_MAX:
-        score += 2
-    if sentiment > 0:
-        score += 2
-    score += 2  # base score for passing all filters
-    return min(score, 10)
-
-
-def run_screener(investment_amount, tickers):
-    trade_plans = []
-    market_trend = get_market_trend()
-
-    for ticker in tickers:
-        if ticker in EXCLUDED_TICKERS:
-            continue
-
-        percent_change, current_price = get_percent_change(ticker)
-        if percent_change < PERCENT_CHANGE_MIN or percent_change > PERCENT_CHANGE_MAX:
-            continue
-
-        rvol = get_rvol(ticker)
-        if rvol < RVOL_THRESHOLD:
-            continue
-
-        atr = get_atr(ticker)
-        if atr < ATR_MIN or atr > ATR_MAX:
-            continue
-
-        benzinga_news, sentiment = get_benzinga_news(ticker)
-
-        stop_loss = current_price - (ATR_MULTIPLIER * atr)
-        target = current_price + (ATR_MULTIPLIER * atr)
-        shares = calculate_shares(investment_amount, current_price, stop_loss)
-
-        if shares == 0:
-            continue
-
-        trend_vs_market = "WITH the market"
-        if percent_change > market_trend:
-            trend_vs_market = "HIGHER than the market"
-        elif percent_change < market_trend:
-            trend_vs_market = "LOWER than the market"
-
-        score = calculate_score(percent_change, rvol, atr, sentiment)
-
-        trade_plans.append({
-            'ticker': ticker,
-            'score': score,
-            'price': current_price,
-            'percent_change': percent_change,
-            'RVOL': rvol,
-            'ATR': atr,
-            'benzinga_news': benzinga_news,
-            'sentiment': sentiment,
-            'stop_loss': round(stop_loss, 2),
-            'target': round(target, 2),
-            'shares': shares,
-            'total_invested': round(current_price * shares, 2),
-            'trend_vs_market': trend_vs_market
-        })
-
-    return sorted(trade_plans, key=lambda x: (x['score'], x['ATR']), reverse=True)
-
-def get_market_top_gainers():
-    """Fetch top market gainers from Polygon.io."""
-    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
-    response = requests.get(url).json()
-    return [item['ticker'] for item in response.get('tickers', []) if item['ticker'] not in EXCLUDED_TICKERS]
-
-
-# --- STREAMLIT UI ---
-if check_password():
-    st.title('Mayo Stock Screener & Trade Planner')
-
-    investment_amount = st.number_input('Enter Investment Amount ($):', min_value=10.0, value=50000.0, step=1000.0)
-    formatted_investment = "{:,}".format(investment_amount)
-    st.write(f"Investment Amount: ${formatted_investment}")
-
-    mode = st.selectbox('Select Mode:', ['Screen Full Market', 'Top 10 Market Gainers', 'Search Individual Tickers'])
-
-    tickers = []
-    if mode == 'Top 10 Market Gainers':
-        tickers = get_market_top_gainers()[:10]
-
-    elif mode == 'Search Individual Tickers':
-        tickers_input = st.text_input('Enter tickers separated by commas (e.g. AAPL,MSFT,NVDA):')
-        if tickers_input:
-            tickers = [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
-
-    if st.button('Run Screener') and tickers:
-        if mode == 'Screen Full Market':
-            trade_plans = run_screener(investment_amount, tickers)
-            if not trade_plans:
-                st.error("No qualifying stocks found.")
-            else:
-                for plan in trade_plans:
-                    st.subheader(f"{plan['ticker']} (Score: {plan['score']}/10)")
-                    st.write(plan)
-                    st.write(f"Stock is trending {plan['trend_vs_market']}")
-
-        else:
-            for ticker in tickers:
-                percent_change, current_price = get_percent_change(ticker)
-                rvol = get_rvol(ticker)
-                atr = get_atr(ticker)
-                benzinga_news, sentiment = get_benzinga_news(ticker)
-
-                st.subheader(f"{ticker} Snapshot")
-                st.write({
-                    'Price': f"${current_price:.2f}",
-                    'Percent Change': f"{percent_change:.2f}%",
-                    'RVOL': rvol,
-                    'ATR': atr,
-                    'Benzinga News': benzinga_news,
-                    'Sentiment': sentiment
-                })
-
+if st.checkbox("Show past journal entries"):
+    for j in reversed(journal[-10:]):
+        st.markdown(f"**{j['timestamp']}**\n
+{j['entry']}")
