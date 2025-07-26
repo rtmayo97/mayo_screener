@@ -16,7 +16,7 @@ import json
 POLYGON_API_KEY = st.secrets['Polygon_Key']
 BENZINGA_API_KEY = st.secrets['Benzinga_Key']
 APP_PASSWORD = st.secrets['APP_PASSWORD']
-
+OPENAI_CLIENT = st.secrets['Open_AI_Key']
 # --- PASSWORD CHECK ---
 def check_password():
     def password_entered():
