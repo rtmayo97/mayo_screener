@@ -38,8 +38,8 @@ def check_password():
 
 # ---------- Setup ----------
 if check_password():
-st.set_page_config(page_title="Trading AI Assistant", layout="wide")
-st.title("🤖 Smart Trading Screener & Journal")
+    st.set_page_config(page_title="Trading AI Assistant", layout="wide")
+    st.title("🤖 Smart Trading Screener & Journal")
 
 STRATEGY_FILE = "scalping_strategy.json"
 JOURNAL_FILE = "scalping_journal.json"
