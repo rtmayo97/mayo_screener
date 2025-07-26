@@ -16,6 +16,8 @@ import json
 POLYGON_API_KEY = st.secrets['Polygon_Key']
 BENZINGA_API_KEY = st.secrets['Benzinga_Key']
 APP_PASSWORD = st.secrets['APP_PASSWORD']
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+OPENAI_CLIENT = openai
 
 # --- PASSWORD CHECK ---
 def check_password():
@@ -35,11 +37,11 @@ def check_password():
         return False
     else:
         return True
-
-# ---------- Setup ----------
 if check_password():
-    st.set_page_config(page_title="Trading AI Assistant", layout="wide")
-    st.title("🤖 Smart Trading Screener & Journal")
+# ---------- Setup ----------
+
+st.set_page_config(page_title="Trading AI Assistant", layout="wide")
+st.title("🤖 Smart Trading Screener & Journal")
 
 STRATEGY_FILE = "scalping_strategy.json"
 JOURNAL_FILE = "scalping_journal.json"
