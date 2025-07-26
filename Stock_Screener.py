@@ -68,10 +68,20 @@ def get_all_indicators(ticker):
     try:
         trade = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}").json()
         prev = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}").json()
+
+        from datetime import date, timedelta
         end = date.today()
         start = end - timedelta(days=30)
-        stats = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}").json()
-        news = requests.get(f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock").json()
+        stats = requests.get(
+            f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
+        ).json()
+
+        news = requests.get(
+            f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
+        ).json()
+
+        st.write(f"✅ RAW DATA for {ticker}", {"trade": trade, "prev": prev, "stats": stats, "news": news})
+
         last_price = trade.get('last', {}).get('price', 0)
         prev_close = prev.get('results', [{}])[0].get('c', 0)
         pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
@@ -81,7 +91,6 @@ def get_all_indicators(ticker):
 
         highs = [x['h'] for x in stats.get('results', [])]
         lows = [x['l'] for x in stats.get('results', [])]
-        closes = [x['c'] for x in stats.get('results', [])]
         atr = round(pd.Series([h - l for h, l in zip(highs, lows)]).mean(), 2) if highs and lows else 0
 
         headline = news.get('news', [{}])[0].get('title', 'No recent news.') if news.get('news') else 'No recent news.'
@@ -91,14 +100,17 @@ def get_all_indicators(ticker):
             "ticker": ticker,
             "price": round(last_price, 2),
             "percent_change": round(pct_change, 2),
-            "vol": vol,
+            "vol": vols[0] if vols else 0,
             "rvol": rvol,
             "atr": atr,
             "headline": headline,
             "sentiment": sentiment
         }
-    except:
+
+    except Exception as e:
+        st.warning(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
+
 
 def fetch_and_rank():
     tickers = get_top_gainers()
