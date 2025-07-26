@@ -101,10 +101,14 @@ def get_all_indicators(ticker):
 
 def fetch_and_rank():
     tickers = get_top_gainers()
+    st.write("✅ Top Gainers from Polygon:", tickers)  # Debug
     candidates = []
     for t in tickers:
         data = get_all_indicators(t)
+        st.write(f"📊 Indicators for {t}:", data)  # Debug
         if data: candidates.append(data)
+    if not candidates:
+        return "⚠️ No valid candidates found to rank."
     return rank_with_gpt(candidates)
 
 def rank_with_gpt(candidates):
