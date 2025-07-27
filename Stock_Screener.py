@@ -103,55 +103,35 @@ if st.button("🔁 Run Screener"):
             "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
         })
 
-    # --- 6. Load Data to SQLite ---
-    conn = sqlite3.connect(":memory:")
+      # --- 6. Load Data to SQLite ---
     df = pd.DataFrame(result_rows)
-    # Convert the result list to a DataFrame
-df = pd.DataFrame(result_rows)
 
-# Only continue if there's actually data
-if df.empty:
-    st.warning("⚠️ No valid tickers returned. Try increasing the sample size or check API limit.")
-    st.stop()
+    if df.empty:
+        st.warning("⚠️ No valid tickers returned. Try increasing the sample size or check API limit.")
+        st.stop()
 
-# Drop any rows with missing data
-df = df.dropna()
+    # Drop rows with missing data
+    df = df.dropna()
 
-# Force correct columns only
-required_columns = [
-    "ticker", "price", "volume", "macd_hist", "rsi_2", "rsi_5",
-    "ema_9", "ema_21", "atr", "vwap", "bb_width", "ema_crossover"
-]
-df = df[[col for col in required_columns if col in df.columns]]
+    # Keep only the expected columns
+    required_columns = [
+        "ticker", "price", "volume", "macd_hist", "rsi_2", "rsi_5",
+        "ema_9", "ema_21", "atr", "vwap", "bb_width", "ema_crossover"
+    ]
+    df = df[[col for col in required_columns if col in df.columns]]
 
-# Force all data types explicitly
-for col in df.columns:
-    if col == "ticker":
-        df[col] = df[col].astype(str)
-    elif col == "ema_crossover":
-        df[col] = df[col].fillna(0).astype(int)
-    else:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+    # Force all types
+    for col in df.columns:
+        if col == "ticker":
+            df[col] = df[col].astype(str)
+        elif col == "ema_crossover":
+            df[col] = df[col].fillna(0).astype(int)
+        else:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.dropna()
 
-# Final drop of any rows with NaNs after coercion
-df = df.dropna()
-
-# Show preview
-st.write("✅ Cleaned DataFrame:")
-st.dataframe(df.head())
-
-# Connect to SQLite and write table
-conn = sqlite3.connect(":memory:")
-df.to_sql("stocks", conn, index=False, if_exists="replace")
-
-# Now safe to write to SQLite
-
-st.write("✅ Data cleaned. Preview:")
-st.dataframe(df.head())
-st.write("🔍 Column types:")
-st.write(df.dtypes)
-
-df.to_sql("stocks", conn, index=False, if_exists="replace")
+    # --- Write to SQLite ---
+    conn = sqlite3.connect(":memory:")
     df.to_sql("stocks", conn, index=False, if_exists="replace")
 
     # --- 7. Score and Rank Using SQL ---
@@ -171,6 +151,5 @@ df.to_sql("stocks", conn, index=False, if_exists="replace")
     st.subheader("🏆 Top Ranked Stocks (SQL Scored)")
     st.dataframe(top_stocks)
 
-    # Optional full table
     with st.expander("📊 Full Data Table"):
         st.dataframe(df)
