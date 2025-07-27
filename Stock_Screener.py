@@ -97,6 +97,7 @@ if st.button("🔁 Run Screener"):
 
     # Parse and validate candles
     candles = pd.DataFrame(data.get("results", []))
+    
     if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
         continue  # Skip tickers with missing data
 
