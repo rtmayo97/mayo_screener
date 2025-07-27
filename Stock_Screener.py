@@ -63,7 +63,7 @@ if st.button("🔁 Run Screener"):
 
     result_rows = []
     
-    st.subheader("🔍 Filtered Tickers (Price $45–$70, Volume > 2M)")
+    st.subheader("🔍 Filtered Tickers")
     st.dataframe(filtered[['ticker', 'price', 'volume', 'percent_change']])
 
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
