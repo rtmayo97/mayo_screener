@@ -114,21 +114,26 @@ if st.button("🔁 Run Screener"):
 
         latest = candles.iloc[-1]
 
-        # --- 5. Save Latest Indicator Snapshot ---
-        result_rows.append({
-            "ticker": symbol,
-            "price": latest['close'],
-            "volume": latest['volume'],
-            "macd_hist": latest['macd_hist'],
-            "rsi_2": latest['rsi_2'],
-            "rsi_5": latest['rsi_5'],
-            "ema_9": latest['ema_9'],
-            "ema_21": latest['ema_21'],
-            "atr": latest['atr'],
-            "vwap": latest['vwap'],
-            "bb_width": latest['bb_width'],
-            "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
-        })
+    # Get percent change from snapshot for current ticker
+    percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
+    percent = percent[0] if len(percent) > 0 else 0
+    
+    result_rows.append({
+        "ticker": symbol,
+        "price": latest['close'],
+        "volume": latest['volume'],
+        "percent_change": percent,
+        "macd_hist": latest['macd_hist'],
+        "rsi_2": latest['rsi_2'],
+        "rsi_5": latest['rsi_5'],
+        "ema_9": latest['ema_9'],
+        "ema_21": latest['ema_21'],
+        "atr": latest['atr'],
+        "vwap": latest['vwap'],
+        "bb_width": latest['bb_width'],
+        "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
+    })
+
 
 # --- 6. Convert result list to DataFrame ---
 df = pd.DataFrame(result_rows)
@@ -161,21 +166,16 @@ df_filtered['score'] = (
     (df_filtered['rsi_2'] < 10).astype(int) +
     (df_filtered['ema_9'] > df_filtered['ema_21']).astype(int)
 )
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- 9. Sort and Display Top Ranked Stocks ---
-top_stocks = df_filtered.sort_values("score", ascending=False).head(10)
+top_display = top_stocks.copy()
+top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
+top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
+top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
 
 st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-st.dataframe(top_stocks)
+st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
 
 # Optional: show all passing tickers
 with st.expander("📊 All Filtered Stocks"):
     st.dataframe(df_filtered)
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # --- 8. Display in Streamlit ---
-    st.subheader("🏆 Top Ranked Stocks (SQL Scored)")
-    st.dataframe(top_stocks)
-
-    with st.expander("📊 Full Data Table"):
-        st.dataframe(df)
