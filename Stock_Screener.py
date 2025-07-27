@@ -90,50 +90,50 @@ if st.button("🔁 Run Screener"):
 
     result_rows = []
 
-for symbol in filtered['ticker']:
-    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
-    r = requests.get(url)
-    data = r.json()
-
-    # Parse and validate candles
-    candles = pd.DataFrame(data.get("results", []))
+    for symbol in filtered['ticker']:
+        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
+        r = requests.get(url)
+        data = r.json()
     
-    if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
-        continue  # Skip tickers with missing data
-
-    # Rename columns
-    candles.rename(columns={
-        'v': 'volume', 'o': 'open', 'c': 'close',
-        'h': 'high', 'l': 'low', 't': 'timestamp'
-    }, inplace=True)
-
-    candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
-    candles.set_index('timestamp', inplace=True)
-
-    # Make sure there's enough data for indicators
-    if len(candles) < 20:
-        continue
-
-    # --- 4. Add Technical Indicators ---
-    candles['ema_9'] = ta.ema(candles['close'], length=9)
-    candles['ema_21'] = ta.ema(candles['close'], length=21)
-    candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
-    candles['rsi_2'] = ta.rsi(candles['close'], length=2)
-    candles['rsi_5'] = ta.rsi(candles['close'], length=5)
-    candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
-    candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
-    candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
-
-    latest = candles.iloc[-1]
-
-    # --- Bollinger Bands with Append ---
-    ta.bbands(candles['close'], length=20, std=2, append=True)
+        # Parse and validate candles
+        candles = pd.DataFrame(data.get("results", []))
+        
+        if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
+            continue  # Skip tickers with missing data
     
-    # Ensure BB columns exist before calculating width
-    if 'BBU_20_2.0' in candles.columns and 'BBL_20_2.0' in candles.columns:
-        candles['bb_width'] = candles['BBU_20_2.0'] - candles['BBL_20_2.0']
-    else:
-        continue  # Skip if bands missing
+        # Rename columns
+        candles.rename(columns={
+            'v': 'volume', 'o': 'open', 'c': 'close',
+            'h': 'high', 'l': 'low', 't': 'timestamp'
+        }, inplace=True)
+    
+        candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
+        candles.set_index('timestamp', inplace=True)
+    
+        # Make sure there's enough data for indicators
+        if len(candles) < 20:
+            continue
+    
+        # --- 4. Add Technical Indicators ---
+        candles['ema_9'] = ta.ema(candles['close'], length=9)
+        candles['ema_21'] = ta.ema(candles['close'], length=21)
+        candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
+        candles['rsi_2'] = ta.rsi(candles['close'], length=2)
+        candles['rsi_5'] = ta.rsi(candles['close'], length=5)
+        candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
+        candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
+        candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
+    
+        latest = candles.iloc[-1]
+    
+        # --- Bollinger Bands with Append ---
+        ta.bbands(candles['close'], length=20, std=2, append=True)
+        
+        # Ensure BB columns exist before calculating width
+        if 'BBU_20_2.0' in candles.columns and 'BBL_20_2.0' in candles.columns:
+            candles['bb_width'] = candles['BBU_20_2.0'] - candles['BBL_20_2.0']
+        else:
+            continue  # Skip if bands missing
 
 
     # Get percent change from snapshot
