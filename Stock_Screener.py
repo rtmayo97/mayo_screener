@@ -37,7 +37,7 @@ if not check_password():
 
 # --- Streamlit Setup ---
 st.set_page_config(page_title="PR356 Screener", layout="wide")
-st.title("📈 PR356 Stock Screener – Phase 1")
+st.title("📈 PR356 Stock Screener")
 
 # --- Refresh Button ---
 if st.button("🔁 Run Screener"):
