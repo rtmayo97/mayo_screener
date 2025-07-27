@@ -15,6 +15,9 @@ st.title("🚀 Real-Time Scalping Screener (Top 10 Picks)")
 # --- SECRETS ---
 POLYGON_API_KEY = st.secrets["Polygon_Key"]
 
+# --- MODE TOGGLE ---
+use_live_data = st.toggle("Use Live Market Data", value=False)
+
 # --- SNAPSHOT FETCH ---
 @st.cache_data(ttl=60)
 def get_polygon_snapshot():
@@ -49,8 +52,15 @@ def get_5min_data(ticker):
 def score_ticker(ticker):
     try:
         price = ticker['lastTrade']['p']
-        score += min((percent_change / 10), 1.5)
+        prev_close = ticker['prevDay']['c']
         volume = ticker['prevDay']['v']
+
+        if use_live_data:
+            percent_change = ticker['todaysChangePerc']
+            volume = ticker['day']['v']
+        else:
+            percent_change = ((price - prev_close) / prev_close) * 100
+
         rvol = volume / (ticker['prevDay']['v'] if ticker['prevDay']['v'] > 0 else 1)
 
         if not (40 <= price <= 75 and percent_change >= 1.5 and volume > 2_000_000):
