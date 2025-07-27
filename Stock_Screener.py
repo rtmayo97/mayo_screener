@@ -84,7 +84,7 @@ if st.button("🔁 Run Screener"):
     st.subheader("🔍 Filtered Tickers")
     st.dataframe(filtered_display[['ticker', 'price', 'percent_change','volume']])
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
+    # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
     for symbol in filtered['ticker']:
         from_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
         to_date = datetime.now().strftime('%Y-%m-%d')
