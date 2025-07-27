@@ -1,16 +1,28 @@
+# scalping_screener_app.py
+# Streamlit app to scan and rank top 10 scalping candidates using Polygon.io API
+
+import streamlit as st
 import requests
 import pandas as pd
-import streamlit as st
 
-# --- CONFIG ---
-POLYGON_API_KEY = st.secrets['Polygon_Key']
+# --- PAGE SETUP ---
+st.set_page_config(page_title="Top 10 Scalping Screener", layout="wide")
+st.title("🚀 Real-Time Scalping Screener (Top 10 Picks)")
 
-# --- API CALL ---
+# --- SECRETS ---
+POLYGON_API_KEY = st.secrets["Polygon_Key"]
+
+# --- SNAPSHOT FETCH ---
+@st.cache_data(ttl=60)
 def get_polygon_snapshot():
     url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
-    response = requests.get(url)
-    data = response.json()
-    return data['tickers']
+    try:
+        response = requests.get(url)
+        data = response.json()
+        return data['tickers']
+    except Exception as e:
+        st.error(f"Error fetching data from Polygon.io: {e}")
+        return []
 
 # --- SCORING FUNCTION ---
 def score_ticker(ticker):
@@ -27,29 +39,29 @@ def score_ticker(ticker):
         score += min((percent_change / 10), 1.5)  # Max 1.5
         score += min((volume / 5_000_000), 2.5)    # Max 2.5
         score += min((rvol / 2), 2)               # Max 2
-        score += 4                                 # Base for meeting criteria
+        score += 4                                 # Base for meeting core criteria
 
         return {
-            "ticker": ticker['ticker'],
-            "price": price,
-            "percent_change": percent_change,
-            "volume": volume,
-            "rvol": round(rvol, 2),
-            "score": round(min(score, 10.0), 2)
+            "Ticker": ticker['ticker'],
+            "Price": round(price, 2),
+            "% Change": round(percent_change, 2),
+            "Volume": f"{volume:,}",
+            "RVOL": round(rvol, 2),
+            "Score (1-10)": round(min(score, 10.0), 2)
         }
 
-    except Exception:
+    except:
         return None
 
-# --- MAIN FUNCTION ---
-def get_top_trades():
+# --- MAIN ---
+with st.spinner("Scanning entire market... this may take a few seconds..."):
     tickers = get_polygon_snapshot()
     scored = [score_ticker(t) for t in tickers]
-    scored = [s for s in scored if s is not None]
-    top_trades = sorted(scored, key=lambda x: x['score'], reverse=True)[:10]
-    return pd.DataFrame(top_trades)
+    top_10 = sorted([s for s in scored if s], key=lambda x: x['Score (1-10)'], reverse=True)[:10]
 
-# --- RUN ---
-if __name__ == "__main__":
-    df = get_top_trades()
-    print(df)
+if top_10:
+    df = pd.DataFrame(top_10)
+    st.success("Top 10 trade ideas ready ✅")
+    st.dataframe(df, use_container_width=True)
+else:
+    st.warning("No qualifying trades found at the moment. Check back shortly.")
