@@ -111,7 +111,7 @@ for symbol in filtered['ticker']:
     
         # Make sure there's enough data for indicators
         if len(candles) < 20:
-            continue
+        continue
     
         # --- 4. Add Technical Indicators ---
         candles['ema_9'] = ta.ema(candles['close'], length=9)
