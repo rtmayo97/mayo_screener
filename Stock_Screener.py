@@ -28,7 +28,6 @@ def fetch_data():
 # --- LOAD DATA ---
 tickers_df = fetch_data()
 st.subheader("📄 Available Data Preview")
-st.dataframe(tickers_df.head(10), use_container_width=True)
 
 # --- SQL INPUT ---
 st.subheader("🧠 SQL Query Editor")
