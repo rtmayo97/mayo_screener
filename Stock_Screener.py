@@ -5,7 +5,7 @@
 import sys
 import requests
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import streamlit as st
 import os
 import pandas_ta as ta
@@ -38,8 +38,10 @@ def check_password():
     else:
         return True
 
-# ---------- Setup ----------
+if not check_password():
+    st.stop()
 
+# ---------- Setup ----------
 st.set_page_config(page_title="Trading AI Assistant", layout="wide")
 st.title("🤖 Smart Trading Screener & Journal")
 
@@ -56,6 +58,17 @@ strategy = json.load(open(STRATEGY_FILE))
 journal = json.load(open(JOURNAL_FILE))
 
 # ---------- Screener Logic ----------
+def is_valid_candidate(stock):
+    return (
+        40 <= stock["price"] <= 75 and
+        stock["volume"] > 2_000_000 and
+        stock["percent_change"] >= 2 and
+        3 <= stock["atr"] <= 6 and
+        stock["price"] > stock["vwap"] and
+        stock["price"] > stock["ema"] and
+        stock["rsi"] < 70
+    )
+
 def get_top_gainers():
     url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
     try:
@@ -64,10 +77,8 @@ def get_top_gainers():
     except:
         return []
 
-
 def get_all_indicators(ticker):
     try:
-        # Get trade and aggregate data
         trade_resp = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}")
         prev_resp = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}")
         end = date.today()
@@ -75,31 +86,25 @@ def get_all_indicators(ticker):
         stats_resp = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}")
         news_resp = requests.get(f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}")
 
-        # Optional debug display
-        st.write(f"📦 {ticker} trade response:", trade_resp.status_code, trade_resp.text[:300])
-        st.write(f"📦 {ticker} prev response:", prev_resp.status_code, prev_resp.text[:300])
-        st.write(f"📦 {ticker} stats response:", stats_resp.status_code, stats_resp.text[:300])
-        st.write(f"📦 {ticker} news response:", news_resp.status_code, news_resp.text[:300])
-
-        # Parse JSON responses
         trade = trade_resp.json()
         prev = prev_resp.json()
         stats = stats_resp.json()
         news = news_resp.json()
 
-        # Extract data
         last_price = trade.get('last', {}).get('price', 0)
         prev_close = prev.get('results', [{}])[0].get('c', 0)
         pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
 
-        # Calculate RVOL and ATR
-        vols = [x['v'] for x in stats.get('results', [])]
-        rvol = round(vols[0] / (sum(vols[1:21]) / 20), 2) if len(vols) > 20 else 0
-        highs = [x['h'] for x in stats.get('results', [])]
-        lows = [x['l'] for x in stats.get('results', [])]
-        atr = round(pd.Series([h - l for h, l in zip(highs, lows)]).mean(), 2) if highs and lows else 0
+        results = stats.get('results', [])
+        df = pd.DataFrame(results)
+        df['hl'] = df['h'] - df['l']
+        atr = round(df['hl'].mean(), 2)
+        rvol = round(df['v'].iloc[0] / df['v'].iloc[1:21].mean(), 2) if len(df) > 20 else 0
+        vwap = df.iloc[0]['vwap'] if 'vwap' in df.iloc[0] else 0
+        close_prices = df['c'].tolist()
+        rsi = ta.rsi(pd.Series(close_prices), length=14).iloc[-1] if len(close_prices) >= 14 else 50
+        ema = ta.ema(pd.Series(close_prices), length=9).iloc[-1] if len(close_prices) >= 9 else 0
 
-        # News headline + GPT sentiment
         headline = news.get('results', [{}])[0].get('title', 'No recent news.') if news.get('results') else 'No recent news.'
         sentiment_prompt = f"What is the market sentiment of this headline? Respond only with 'positive', 'neutral', or 'negative'.\n\nHeadline: {headline}"
         sentiment_res = OPENAI_CLIENT.chat.completions.create(
@@ -113,47 +118,45 @@ def get_all_indicators(ticker):
             "ticker": ticker,
             "price": round(last_price, 2),
             "percent_change": round(pct_change, 2),
-            "vol": vols[0] if vols else 0,
+            "volume": df.iloc[0]['v'],
             "rvol": rvol,
             "atr": atr,
+            "vwap": vwap,
+            "ema": ema,
+            "rsi": round(rsi, 2),
             "headline": headline,
             "sentiment": sentiment
         }
-    
     except Exception as e:
         st.error(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
 
-
-
-
 def fetch_and_rank():
     tickers = get_top_gainers()
-    st.write("✅ Top Gainers from Polygon:", tickers)  # Debug
+    st.write("✅ Top Gainers from Polygon:", tickers)
     candidates = []
     for t in tickers:
         data = get_all_indicators(t)
-        st.write(f"📊 Indicators for {t}:", data)  # Debug
-        if data: candidates.append(data)
+        if data and is_valid_candidate(data):
+            candidates.append(data)
     if not candidates:
         return "⚠️ No valid candidates found to rank."
     return rank_with_gpt(candidates)
 
 def rank_with_gpt(candidates):
-    if not candidates: return []
     prompt = f"""
 You're Mayo's trusted AI scalping assistant. Analyze these stocks based on:
 - % price change
 - RVOL
 - Volume
 - ATR (volatility)
-- Headline relevance & sentiment
-- Risk-reward potential
-- Any other indicator from the data that helps assess scalping quality
+- VWAP / EMA confirmation
+- RSI momentum
+- News sentiment
 
 {json.dumps(candidates, indent=2)}
 
-Rank the **top 5–10 stocks** for scalping today, with scores (1 = best), and briefly explain why for each.
+Rank the top 5–10 stocks for scalping today, with scores and brief reasons.
 """
     res = OPENAI_CLIENT.chat.completions.create(
         model="gpt-4",
@@ -162,53 +165,9 @@ Rank the **top 5–10 stocks** for scalping today, with scores (1 = best), and b
     )
     return res.choices[0].message.content
 
-# ---------- Strategy Suggestions ----------
-def suggest_strategy_adjustment():
-    if len(journal) < 3:
-        return "Not enough journal data to suggest changes yet."
-
-    prompt = f"""
-You're Mayo's personal trading assistant. Based on these recent journal entries, suggest 1–2 specific tweaks to the scalping strategy that could improve trade outcomes.
-Be specific with filters (like RVOL, ATR, sentiment, etc.):
-
-{json.dumps(journal[-10:], indent=2)}
-"""
-    response = OPENAI_CLIENT.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
-    )
-    return response.choices[0].message.content
-
-# ---------- UI: Top Trades ----------
+# ---------- UI ----------
 if st.button("🔍 Get Today's Top 10 Scalping Picks"):
     with st.spinner("Scanning market and consulting GPT..."):
         results = fetch_and_rank()
         st.subheader("🏆 GPT-Ranked Top Trades")
         st.markdown(results)
-# ---------- UI: Journal ----------
-st.markdown("---")
-st.subheader("📝 Journal")
-entry = st.text_area("Log your thoughts, wins, or strategy updates:")
-
-if st.button("💾 Save to Journal"):
-    log = {"timestamp": datetime.now().isoformat(), "entry": entry}
-    journal.append(log)
-    with open(JOURNAL_FILE, "w") as f:
-        json.dump(journal, f, indent=2)
-    st.success("Saved!")
-
-if st.checkbox("📚 Show Past Entries"):
-    for j in reversed(journal[-10:]):
-        st.markdown(f"""**{j['timestamp']}**
-{j['entry']}""")
-
-# ---------- UI: Strategy Suggestion ----------
-st.markdown("---")
-st.subheader("🧠 Strategy Suggestions from GPT")
-
-if st.button("🔧 Suggest Adjustments Based on Journal"):
-    with st.spinner("Analyzing your journal..."):
-        suggestion = suggest_strategy_adjustment()
-        st.info(suggestion)
-        st.markdown("If you like the changes, apply them manually to your filters in your strategy settings.")
