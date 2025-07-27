@@ -106,9 +106,21 @@ if st.button("🔁 Run Screener"):
     # --- 6. Load Data to SQLite ---
     conn = sqlite3.connect(":memory:")
     df = pd.DataFrame(result_rows)
-    # Clean and convert to SQL-safe types
-    df = df.dropna()  # Drop any rows with missing data (you can also fillna if you prefer)
-    df = df.astype({
+    # Step 1: Convert list to DataFrame
+df = pd.DataFrame(result_rows)
+
+# Step 2: Drop any rows with missing or invalid data
+df = df.dropna()
+
+# Step 3: Keep only valid, known columns
+expected_columns = [
+    "ticker", "price", "volume", "macd_hist", "rsi_2", "rsi_5",
+    "ema_9", "ema_21", "atr", "vwap", "bb_width", "ema_crossover"
+]
+df = df[expected_columns]
+
+# Step 4: Force all columns to the correct data types
+df = df.astype({
     "ticker": str,
     "price": float,
     "volume": float,
@@ -120,7 +132,17 @@ if st.button("🔁 Run Screener"):
     "atr": float,
     "vwap": float,
     "bb_width": float,
-    "ema_crossover": int,})
+    "ema_crossover": int,
+})
+
+# Now safe to write to SQLite
+
+st.write("✅ Data cleaned. Preview:")
+st.dataframe(df.head())
+st.write("🔍 Column types:")
+st.write(df.dtypes)
+
+df.to_sql("stocks", conn, index=False, if_exists="replace")
     df.to_sql("stocks", conn, index=False, if_exists="replace")
 
     # --- 7. Score and Rank Using SQL ---
