@@ -47,21 +47,24 @@ if st.button("🔁 Run Screener"):
     snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
     snap = requests.get(snapshot_url).json()
     tickers = pd.json_normalize(snap['tickers'])
+    tickers = tickers.rename(columns={
+    'lastTrade.p': 'price',
+    'day.v': 'volume',
+    'todaysChangePerc': 'percent_change'
+})
 
     # --- 2. Filter Tickers by Price and Volume ---
     filtered = tickers[
         (tickers['lastTrade.p'] >= 45) &
         (tickers['lastTrade.p'] <= 70) &
-        (tickers['day.v'] > 2_000_000)
+        (tickers['day.v'] > 2_000_000) &
+        (tickers['percent_change'] >= 2.0)
     ].head(TICKERS_TO_PULL)
 
     result_rows = []
     
-    st.subheader("📊 Raw Ticker Snapshot Preview")
-    st.dataframe(tickers[['ticker', 'lastTrade.p', 'day.v']].head(100))
-
     st.subheader("🔍 Filtered Tickers (Price $45–$70, Volume > 2M)")
-    st.dataframe(filtered[['ticker', 'lastTrade.p', 'day.v']])
+    st.dataframe(filtered[['ticker', 'price', 'volume', 'percent_change']])
 
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
