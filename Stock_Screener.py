@@ -106,6 +106,21 @@ if st.button("🔁 Run Screener"):
     # --- 6. Load Data to SQLite ---
     conn = sqlite3.connect(":memory:")
     df = pd.DataFrame(result_rows)
+    # Clean and convert to SQL-safe types
+    df = df.dropna()  # Drop any rows with missing data (you can also fillna if you prefer)
+    df = df.astype({
+    "ticker": str,
+    "price": float,
+    "volume": float,
+    "macd_hist": float,
+    "rsi_2": float,
+    "rsi_5": float,
+    "ema_9": float,
+    "ema_21": float,
+    "atr": float,
+    "vwap": float,
+    "bb_width": float,
+    "ema_crossover": int,})
     df.to_sql("stocks", conn, index=False, if_exists="replace")
 
     # --- 7. Score and Rank Using SQL ---
