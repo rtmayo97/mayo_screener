@@ -49,7 +49,7 @@ def get_5min_data(ticker):
 def score_ticker(ticker):
     try:
         price = ticker['lastTrade']['p']
-        percent_change = ticker['prevDay']
+        score += min((percent_change / 10), 1.5)
         volume = ticker['prevDay']['v']
         rvol = volume / (ticker['prevDay']['v'] if ticker['prevDay']['v'] > 0 else 1)
 
