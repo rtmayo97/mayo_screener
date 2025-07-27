@@ -137,10 +137,10 @@ if st.button("🔁 Run Screener"):
     latest = candles.iloc[-1]
 
     # ✅ Check for required columns BEFORE using them
-required_cols = ['macd_hist', 'rsi_2', 'rsi_5', 'ema_9', 'ema_21', 'atr', 'vwap', 'bb_width']
-if not all(col in candles.columns for col in required_cols):
-    st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
-    continue
+    required_cols = ['macd_hist', 'rsi_2', 'rsi_5', 'ema_9', 'ema_21', 'atr', 'vwap', 'bb_width']
+    if not all(col in candles.columns for col in required_cols):
+        st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
+        continue
 
     # Get percent change from snapshot
     percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
