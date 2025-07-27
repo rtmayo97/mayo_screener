@@ -128,12 +128,12 @@ for symbol in filtered['ticker']:
         bbands = ta.bbands(candles['close'])
         
         # Check if expected columns are present
-    if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
-        candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
-    else:
-        st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
-            continue
-
+        if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
+            candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
+        else:
+            st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
+                continue
+    
 
     # Get percent change from snapshot
     latest = candles.iloc[-1]
