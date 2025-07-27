@@ -92,27 +92,27 @@ if st.button("🔁 Run Screener"):
 
     for symbol in filtered['ticker']:
         url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
-    r = requests.get(url)
-    data = r.json()
+        r = requests.get(url)
+        data = r.json()
 
-    # Parse and validate candles
-    candles = pd.DataFrame(data.get("results", []))
+        # Parse and validate candles
+        candles = pd.DataFrame(data.get("results", []))
+        
+        if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
+            continue  # Skip tickers with missing data
+
+        # Rename columns
+        candles.rename(columns={
+            'v': 'volume', 'o': 'open', 'c': 'close',
+            'h': 'high', 'l': 'low', 't': 'timestamp'
+        }, inplace=True)
     
-    if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
-        continue  # Skip tickers with missing data
-
-    # Rename columns
-    candles.rename(columns={
-        'v': 'volume', 'o': 'open', 'c': 'close',
-        'h': 'high', 'l': 'low', 't': 'timestamp'
-    }, inplace=True)
-
-    candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
-    candles.set_index('timestamp', inplace=True)
-
-    # Make sure there's enough data for indicators
-    if len(candles) < 20:
-        continue
+        candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
+        candles.set_index('timestamp', inplace=True)
+    
+        # Make sure there's enough data for indicators
+        if len(candles) < 20:
+            continue
 
     # --- 4. Add Technical Indicators ---
     candles['ema_9'] = ta.ema(candles['close'], length=9)
