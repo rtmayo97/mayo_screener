@@ -106,34 +106,43 @@ if st.button("🔁 Run Screener"):
     # --- 6. Load Data to SQLite ---
     conn = sqlite3.connect(":memory:")
     df = pd.DataFrame(result_rows)
-    # Step 1: Convert list to DataFrame
+    # Convert the result list to a DataFrame
 df = pd.DataFrame(result_rows)
 
-# Step 2: Drop any rows with missing or invalid data
+# Only continue if there's actually data
+if df.empty:
+    st.warning("⚠️ No valid tickers returned. Try increasing the sample size or check API limit.")
+    st.stop()
+
+# Drop any rows with missing data
 df = df.dropna()
 
-# Step 3: Keep only valid, known columns
-expected_columns = [
+# Force correct columns only
+required_columns = [
     "ticker", "price", "volume", "macd_hist", "rsi_2", "rsi_5",
     "ema_9", "ema_21", "atr", "vwap", "bb_width", "ema_crossover"
 ]
-df = df[expected_columns]
+df = df[[col for col in required_columns if col in df.columns]]
 
-# Step 4: Force all columns to the correct data types
-df = df.astype({
-    "ticker": str,
-    "price": float,
-    "volume": float,
-    "macd_hist": float,
-    "rsi_2": float,
-    "rsi_5": float,
-    "ema_9": float,
-    "ema_21": float,
-    "atr": float,
-    "vwap": float,
-    "bb_width": float,
-    "ema_crossover": int,
-})
+# Force all data types explicitly
+for col in df.columns:
+    if col == "ticker":
+        df[col] = df[col].astype(str)
+    elif col == "ema_crossover":
+        df[col] = df[col].fillna(0).astype(int)
+    else:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+# Final drop of any rows with NaNs after coercion
+df = df.dropna()
+
+# Show preview
+st.write("✅ Cleaned DataFrame:")
+st.dataframe(df.head())
+
+# Connect to SQLite and write table
+conn = sqlite3.connect(":memory:")
+df.to_sql("stocks", conn, index=False, if_exists="replace")
 
 # Now safe to write to SQLite
 
