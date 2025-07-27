@@ -85,43 +85,51 @@ if st.button("🔁 Run Screener"):
     st.dataframe(filtered_display[['ticker', 'price', 'percent_change','volume']])
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
+    from_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+    to_date = datetime.now().strftime('%Y-%m-%d')
+
+    result_rows = []
+
     for symbol in filtered['ticker']:
-        from_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-        to_date = datetime.now().strftime('%Y-%m-%d')
+    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
+    r = requests.get(url)
+    data = r.json()
 
-        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
+    # Parse and validate candles
+    candles = pd.DataFrame(data.get("results", []))
+    if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
+        continue  # Skip tickers with missing data
 
-        r = requests.get(url)
-        data = r.json()
-        candles = pd.DataFrame(data.get("results", []))
+    # Rename columns
+    candles.rename(columns={
+        'v': 'volume', 'o': 'open', 'c': 'close',
+        'h': 'high', 'l': 'low', 't': 'timestamp'
+    }, inplace=True)
 
-        if len(candles) < 20:
-            continue  # Skip if not enough data
+    candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
+    candles.set_index('timestamp', inplace=True)
 
-        # --- Rename and Clean ---
-        candles.rename(columns={
-            'v': 'volume', 'o': 'open', 'c': 'close',
-            'h': 'high', 'l': 'low', 't': 'timestamp'
-        }, inplace=True)
-        candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
-        candles.set_index('timestamp', inplace=True)
+    # Make sure there's enough data for indicators
+    if len(candles) < 20:
+        continue
 
-        # --- 4. Add Technical Indicators ---
-        candles['ema_9'] = ta.ema(candles['close'], length=9)
-        candles['ema_21'] = ta.ema(candles['close'], length=21)
-        candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
-        candles['rsi_2'] = ta.rsi(candles['close'], length=2)
-        candles['rsi_5'] = ta.rsi(candles['close'], length=5)
-        candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
-        candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
-        candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
+    # --- 4. Add Technical Indicators ---
+    candles['ema_9'] = ta.ema(candles['close'], length=9)
+    candles['ema_21'] = ta.ema(candles['close'], length=21)
+    candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
+    candles['rsi_2'] = ta.rsi(candles['close'], length=2)
+    candles['rsi_5'] = ta.rsi(candles['close'], length=5)
+    candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
+    candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
+    candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
 
-        latest = candles.iloc[-1]
+    latest = candles.iloc[-1]
 
-    # Get percent change from snapshot for current ticker
+    # Get percent change from snapshot
     percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
     percent = percent[0] if len(percent) > 0 else 0
-    
+
+    # Save snapshot with indicators
     result_rows.append({
         "ticker": symbol,
         "price": latest['close'],
@@ -138,8 +146,7 @@ if st.button("🔁 Run Screener"):
         "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
     })
 
-
-# --- 6. Convert result list to DataFrame ---
+# --- 5. Convert result list to DataFrame ---
 df = pd.DataFrame(result_rows)
 
 # Stop if no data returned
@@ -147,7 +154,7 @@ if df.empty:
     st.warning("⚠️ No valid tickers with candle data.")
     st.stop()
 
-# --- 7. Filter using snapshot + indicator criteria ---
+# --- 6. Filter using snapshot + indicator criteria ---
 df_filtered = df[
     (df['price'] >= 45) &
     (df['price'] <= 70) &
@@ -164,14 +171,14 @@ if df_filtered.empty:
     st.warning("⚠️ No tickers passed the technical filters.")
     st.stop()
 
-# --- 8. Score each stock using pandas ---
+# --- 7. Score each stock using pandas ---
 df_filtered['score'] = (
     (df_filtered['macd_hist'] > 0).astype(int) +
     (df_filtered['rsi_2'] < 10).astype(int) +
     (df_filtered['ema_9'] > df_filtered['ema_21']).astype(int)
 )
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# --- 9. Sort and Display Top Ranked Stocks ---
+# --- 8. Sort and Display Top Ranked Stocks ---
 top_display = top_stocks.copy()
 top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
 top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
