@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 import pandas_ta as ta
 import requests
-import sqlite3
 from datetime import datetime, timedelta
 
 # --- Configuration ---
@@ -131,49 +130,48 @@ if st.button("🔁 Run Screener"):
             "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
         })
 
-      # --- 6. Load Data to SQLite ---
-    df = pd.DataFrame(result_rows)
+# --- 6. Convert result list to DataFrame ---
+df = pd.DataFrame(result_rows)
 
-    if df.empty:
-        st.warning("⚠️ No valid tickers returned. Try increasing the sample size or check API limit.")
-        st.stop()
+# Stop if no data returned
+if df.empty:
+    st.warning("⚠️ No valid tickers with candle data.")
+    st.stop()
 
-    # Drop rows with missing data
-    df = df.dropna()
+# --- 7. Filter using snapshot + indicator criteria ---
+df_filtered = df[
+    (df['price'] >= 45) &
+    (df['price'] <= 70) &
+    (df['volume'] > 2_000_000) &
+    (df['percent_change'] >= 2.0) &
+    (df['macd_hist'] > 0) &
+    (df['rsi_2'] < 10) &
+    (df['atr'] >= 3) &
+    (df['atr'] <= 6)
+]
 
-    # Keep only the expected columns
-    required_columns = [
-        "ticker", "price", "volume", "macd_hist", "rsi_2", "rsi_5",
-        "ema_9", "ema_21", "atr", "vwap", "bb_width", "ema_crossover"
-    ]
-    df = df[[col for col in required_columns if col in df.columns]]
+# Stop if no tickers passed the technical filters
+if df_filtered.empty:
+    st.warning("⚠️ No tickers passed the technical filters.")
+    st.stop()
 
-    # Force all types
-    for col in df.columns:
-        if col == "ticker":
-            df[col] = df[col].astype(str)
-        elif col == "ema_crossover":
-            df[col] = df[col].fillna(0).astype(int)
-        else:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-    df = df.dropna()
+# --- 8. Score each stock using pandas ---
+df_filtered['score'] = (
+    (df_filtered['macd_hist'] > 0).astype(int) +
+    (df_filtered['rsi_2'] < 10).astype(int) +
+    (df_filtered['ema_9'] > df_filtered['ema_21']).astype(int)
+)
 
-    # --- Write to SQLite ---
-    conn = sqlite3.connect(":memory:")
-    df.to_sql("stocks", conn, index=False, if_exists="replace")
+# --- 9. Sort and Display Top Ranked Stocks ---
+top_stocks = df_filtered.sort_values("score", ascending=False).head(10)
 
-    # --- 7. Score and Rank Using SQL ---
-    query = """
-    SELECT *,
-      (CASE WHEN macd_hist > 0 THEN 1 ELSE 0 END) +
-      (CASE WHEN rsi_2 < 10 THEN 1 ELSE 0 END) +
-      (CASE WHEN ema_crossover = 1 THEN 1 ELSE 0 END)
-      AS score
-    FROM stocks
-    ORDER BY score DESC
-    LIMIT 10;
-    """
-    top_stocks = pd.read_sql_query(query, conn)
+st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
+st.dataframe(top_stocks)
+
+# Optional: show all passing tickers
+with st.expander("📊 All Filtered Stocks"):
+    st.dataframe(df_filtered)
+
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 8. Display in Streamlit ---
     st.subheader("🏆 Top Ranked Stocks (SQL Scored)")
