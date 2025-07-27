@@ -55,9 +55,9 @@ if st.button("🔁 Run Screener"):
 
     # --- 2. Filter Tickers by Price and Volume ---
     filtered = tickers[
-        (tickers['lastTrade.p'] >= 45) &
-        (tickers['lastTrade.p'] <= 70) &
-        (tickers['day.v'] > 2_000_000) &
+        (tickers['price'] >= 45) &
+        (tickers['price'] <= 70) &
+        (tickers['volume'] > 2_000_000) &
         (tickers['percent_change'] >= 2.0)
     ].head(TICKERS_TO_PULL)
 
@@ -65,7 +65,7 @@ if st.button("🔁 Run Screener"):
     
     st.subheader("🔍 Filtered Tickers")
     st.dataframe(filtered[['ticker', 'price', 'volume', 'percent_change']])
-#####------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
         url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}/{datetime.now().strftime('%Y-%m-%d')}?adjusted=true&sort=desc&limit=100&apiKey={POLYGON_API_KEY}"
@@ -155,7 +155,7 @@ if st.button("🔁 Run Screener"):
     LIMIT 10;
     """
     top_stocks = pd.read_sql_query(query, conn)
-#####------------------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 8. Display in Streamlit ---
     st.subheader("🏆 Top Ranked Stocks (SQL Scored)")
     st.dataframe(top_stocks)
