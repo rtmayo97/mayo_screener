@@ -27,7 +27,6 @@ def fetch_data():
 
 # --- LOAD DATA ---
 tickers_df = fetch_data()
-st.subheader("📄 Available Data Preview")
 
 # --- SQL INPUT ---
 st.subheader("🧠 SQL Query Editor")
