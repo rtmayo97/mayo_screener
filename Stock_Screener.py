@@ -68,9 +68,12 @@ if st.button("🔁 Run Screener"):
     ).head(TICKERS_TO_PULL)
 
     result_rows = []
+
+    filtered_display = filtered.copy()
+    filtered_display['volume'] = filtered_display['volume'].apply(lambda x: f"{int(x):,}")
     
     st.subheader("🔍 Filtered Tickers")
-    st.dataframe(filtered[['ticker', 'price', 'volume', 'percent_change']])
+    st.dataframe(filtered[['ticker', 'price', 'percent_change','volume']])
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
