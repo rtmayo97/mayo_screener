@@ -61,6 +61,11 @@ if st.button("🔁 Run Screener"):
         (tickers['percent_change'] >= 2.0)
     ].head(TICKERS_TO_PULL)
 
+    # --- Sort by % change and volume descending ---
+    filtered = filtered.sort_values(
+    by=['percent_change', 'volume'],
+    ascending=[False, False]).head(TICKERS_TO_PULL)
+
     result_rows = []
     
     st.subheader("🔍 Filtered Tickers")
