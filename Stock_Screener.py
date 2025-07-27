@@ -112,13 +112,11 @@ def run_query(q):
         return None
 
 example_sql = """
-SELECT ticker, lastTrade_p AS price, todaysChangePerc, day_v AS volume,
-       RSI_14, MACDh_12_26_9, VWAP_D, ATR_14
+SELECT *
 FROM stocks
 WHERE lastTrade_p BETWEEN 40 AND 75
-  AND RSI_14 < 30
 ORDER BY todaysChangePerc DESC
-LIMIT 10
+LIMIT 35
 """
 
 query_input = st.text_area("Write your SQL query below:", value=example_sql, height=200)
