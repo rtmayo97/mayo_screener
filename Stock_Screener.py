@@ -76,9 +76,12 @@ def get_all_indicators(ticker):
             f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
         )
 
-        news_resp = requests.get(
-            f"https://api.benzinga.com/api/v2/news?token={BENZINGA_API_KEY}&symbols={ticker}&channels=stock"
-        )
+     
+        news_resp = requests.get(f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}")
+        news = news_resp.json()
+        headline = news.get('results', [{}])[0].get('title', 'No recent news.') if news.get('results') else 'No recent news.'
+        sentiment = 0  # Polygon doesn’t return sentiment — you can have GPT infer it if desired
+
 
         st.write(f"📦 {ticker} trade response:", trade_resp.status_code, trade_resp.text[:300])
         st.write(f"📦 {ticker} prev response:", prev_resp.status_code, prev_resp.text[:300])
@@ -89,7 +92,7 @@ def get_all_indicators(ticker):
         trade = trade_resp.json()
         prev = prev_resp.json()
         stats = stats_resp.json()
-        news = news_resp.json()
+        
 
         # Rest of your parsing logic...
         return {}  # Temporarily suppress logic until responses are validated
