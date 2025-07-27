@@ -180,7 +180,13 @@ df_filtered['score'] = (
 )
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- 8. Sort and Display Top Ranked Stocks ---
-top_display = top_stocks.copy()
+top_display = df_filtered.copy()
+top_display['price'] = pd.to_numeric(top_display['price'], errors='coerce')
+top_display['volume'] = pd.to_numeric(top_display['volume'], errors='coerce')
+top_display['percent_change'] = pd.to_numeric(top_display['percent_change'], errors='coerce')
+
+top_display = top_display.sort_values(by=["score", "percent_change", "volume"], ascending=[False, False, False])
+
 top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
 top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
 top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
