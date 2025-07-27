@@ -69,8 +69,17 @@ if st.button("🔁 Run Screener"):
 
     result_rows = []
 
+    # Create a copy for display formatting only
     filtered_display = filtered.copy()
+    
+    # Format volume with commas
     filtered_display['volume'] = filtered_display['volume'].apply(lambda x: f"{int(x):,}")
+    
+    # Format percent change as percentage with 2 decimal places
+    filtered_display['percent_change'] = filtered_display['percent_change'].apply(lambda x: f"{x:.2f}%")
+    
+    # Optional: format price with 2 decimals as well
+    filtered_display['price'] = filtered_display['price'].apply(lambda x: f"${x:.2f}")
     
     st.subheader("🔍 Filtered Tickers")
     st.dataframe(filtered[['ticker', 'price', 'percent_change','volume']])
