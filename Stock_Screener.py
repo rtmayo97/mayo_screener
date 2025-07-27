@@ -6,6 +6,11 @@ import requests
 import pandas as pd
 import sqlite3
 
+# --- API CONFIG ---
+POLYGON_API_KEY = st.secrets["Polygon_Key"]
+url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
+APP_PASSWORD = st.secrets['APP_PASSWORD']
+
 # --- PASSWORD CHECK ---
 def check_password():
     def password_entered():
@@ -31,10 +36,6 @@ if not check_password():
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Polygon SQL Screener", layout="wide")
 st.title("🔍 Polygon.io API SQL Screener")
-
-# --- API CONFIG ---
-POLYGON_API_KEY = st.secrets["Polygon_Key"]
-url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
 
 # --- FETCH DATA ---
 @st.cache_data(ttl=300)
