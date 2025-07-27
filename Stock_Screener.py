@@ -1,14 +1,19 @@
 # streamlit_sql_screener.py
-# Streamlit UI for querying Polygon.io snapshot data with SQL
+# Unified SQL Screener with Polygon Snapshot + Technical Indicators (Top 50)
 
 import streamlit as st
 import requests
 import pandas as pd
+import pandas_ta as ta
 import sqlite3
+from datetime import datetime, timedelta
 
-# --- API CONFIG ---
+# --- PAGE SETUP ---
+st.set_page_config(page_title="Unified SQL Screener", layout="wide")
+st.title("📊 Polygon SQL Screener with Technical Indicators")
+
+# --- SECRETS ---
 POLYGON_API_KEY = st.secrets["Polygon_Key"]
-url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
 APP_PASSWORD = st.secrets['APP_PASSWORD']
 
 # --- PASSWORD CHECK ---
@@ -33,52 +38,91 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- PAGE SETUP ---
-st.set_page_config(page_title="Polygon SQL Screener", layout="wide")
-st.title("🔍 Polygon.io API SQL Screener")
-
-# --- FETCH DATA ---
+# --- FETCH SNAPSHOT ---
 @st.cache_data(ttl=300)
-def fetch_data():
+def fetch_snapshot():
+    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
     response = requests.get(url)
     data = response.json()
-    tickers = pd.json_normalize(data['tickers'])
-    tickers.columns = [col.replace('.', '_') for col in tickers.columns]
-    tickers = tickers[[col for col in tickers.columns if tickers[col].apply(lambda x: isinstance(x, (list, dict))).sum() == 0]]
-    tickers = tickers.loc[:, ~tickers.columns.str.lower().duplicated()]
-    return tickers
+    df = pd.json_normalize(data['tickers'])
+    df.columns = [col.replace('.', '_') for col in df.columns]
+    df = df[[col for col in df.columns if df[col].apply(lambda x: isinstance(x, (list, dict))).sum() == 0]]
+    df = df.loc[:, ~df.columns.str.lower().duplicated()]
+    return df
 
-# --- LOAD DATA ---
-tickers_df = fetch_data()
-
-# --- SQL INPUT ---
-st.subheader("🧠 SQL Query Editor")
-def get_sql_result(query):
-    conn = sqlite3.connect(":memory:")
-    tickers_df.to_sql("stocks", conn, index=False, if_exists="replace")
+# --- FETCH HISTORICAL + INDICATORS FOR ONE TICKER ---
+def fetch_indicators(ticker):
     try:
-        result_df = pd.read_sql_query(query, conn)
-        return result_df
+        end = datetime.utcnow()
+        start = end - timedelta(days=3)
+        url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/5/minute/{start.date()}/{end.date()}?adjusted=true&sort=desc&limit=500&apiKey={POLYGON_API_KEY}"
+        response = requests.get(url)
+        data = response.json().get("results", [])
+        if not data:
+            return None
+        df = pd.DataFrame(data)
+        df['t'] = pd.to_datetime(df['t'], unit='ms')
+        df.rename(columns={'o': 'Open', 'h': 'High', 'l': 'Low', 'c': 'Close', 'v': 'Volume'}, inplace=True)
+        df.ta.macd(append=True)
+        df.ta.rsi(length=14, append=True)
+        df.ta.atr(length=14, append=True)
+        df.ta.vwap(append=True)
+        df.ta.ema(length=9, append=True)
+        df.ta.ema(length=21, append=True)
+        df.ta.bbands(length=20, append=True)
+        return df.iloc[-1:].assign(ticker=ticker)  # Return most recent row
+    except:
+        return None
+
+# --- COMBINE SNAPSHOT + INDICATORS ---
+st.subheader("🔄 Building unified data table...")
+snapshot_df = fetch_snapshot()
+snapshot_df = snapshot_df.sort_values("day_v", ascending=False).head(50)  # Top 50 by volume
+
+indicator_rows = []
+progress = st.progress(0)
+
+for i, ticker in enumerate(snapshot_df['ticker']):
+    ind_df = fetch_indicators(ticker)
+    if ind_df is not None:
+        indicator_rows.append(ind_df)
+    progress.progress((i + 1) / len(snapshot_df))
+
+if not indicator_rows:
+    st.error("❌ No indicator data found.")
+    st.stop()
+
+indicators_df = pd.concat(indicator_rows, ignore_index=True)
+combined_df = pd.merge(snapshot_df, indicators_df, on="ticker", how="inner")
+
+# --- LOAD INTO SQLITE ---
+conn = sqlite3.connect(":memory:")
+combined_df.to_sql("stocks", conn, index=False, if_exists="replace")
+
+st.success(f"✅ Combined dataset loaded with {len(combined_df)} tickers")
+st.dataframe(combined_df[['ticker', 'lastTrade_p', 'todaysChangePerc', 'day_v', 'RSI_14', 'MACDh_12_26_9', 'ATR_14', 'VWAP_D']].head(), use_container_width=True)
+
+# --- SQL EDITOR ---
+st.subheader("🧠 Unified SQL Query Editor")
+def run_query(q):
+    try:
+        return pd.read_sql_query(q, conn)
     except Exception as e:
         st.error(f"SQL Error: {e}")
         return None
 
-sql_query = st.text_area("Write your SQL query below:",
-                         """
-SELECT ticker, lastTrade_p AS price, todaysChangePerc AS pct_change, day_v AS volume
+example_sql = """
+SELECT ticker, lastTrade_p AS price, todaysChangePerc, day_v AS volume,
+       RSI_14, MACDh_12_26_9, VWAP_D, ATR_14
 FROM stocks
 WHERE lastTrade_p BETWEEN 40 AND 75
-AND todaysChangePerc >= 1.5
-AND day_v > 2000000
+  AND RSI_14 < 30
 ORDER BY todaysChangePerc DESC
 LIMIT 10
-""",
-                         height=200)
+"""
 
+query_input = st.text_area("Write your SQL query below:", value=example_sql, height=200)
 if st.button("Run Query"):
-    result = get_sql_result(sql_query)
+    result = run_query(query_input)
     if result is not None:
-        st.success(f"✅ Returned {len(result)} rows")
         st.dataframe(result, use_container_width=True)
-    else:
-        st.warning("No results found or query error.")
