@@ -111,7 +111,7 @@ for symbol in filtered['ticker']:
     
         # Make sure there's enough data for indicators
         if len(candles) < 20:
-        continue
+            continue
     
         # --- 4. Add Technical Indicators ---
         candles['ema_9'] = ta.ema(candles['close'], length=9)
@@ -132,7 +132,7 @@ for symbol in filtered['ticker']:
             candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
         else:
             st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
-                continue
+            continue
     
 
     # Get percent change from snapshot
