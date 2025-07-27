@@ -1,5 +1,5 @@
 # scalping_ai_assistant.py
-# Streamlit app: Scalping Strategy Screener + Journal + AI Insights (Filtered Tickers Version)
+# Streamlit app: Fast Screener Like SQL - Score & Rank Top 10 Stocks
 
 import sys
 import requests
@@ -23,7 +23,7 @@ def check_password():
     def password_entered():
         if st.session_state["password"] == APP_PASSWORD:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # clear for security
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
@@ -44,50 +44,43 @@ if not check_password():
 st.set_page_config(page_title="Trading AI Assistant", layout="wide")
 st.title("🤖 Smart Trading Screener & Journal")
 
-STRATEGY_FILE = "scalping_strategy.json"
-JOURNAL_FILE = "scalping_journal.json"
-
-if not os.path.exists(STRATEGY_FILE):
-    json.dump({}, open(STRATEGY_FILE, "w"))
-
-if not os.path.exists(JOURNAL_FILE):
-    json.dump([], open(JOURNAL_FILE, "w"))
-
-strategy = json.load(open(STRATEGY_FILE))
-journal = json.load(open(JOURNAL_FILE))
-
-# ---------- Screener Logic ----------
-def is_valid_candidate(stock):
-    return (
-        40 <= stock["price"] <= 75 and
-        stock["volume"] > 2_000_000 and
-        stock["percent_change"] >= 2 and
-        3 <= stock["atr"] <= 6 and
-        stock["price"] > stock["vwap"] and
-        stock["price"] > stock["ema"] and
-        stock["rsi"] < 70
-    )
-
-def get_filtered_tickers():
+# ---------- Scoring + Quick Filter ----------
+def get_top_10_fast():
     url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
     try:
         res = requests.get(url).json()
-        tickers = []
-        for stock in res.get('tickers', []):
-            price = stock['lastTrade']['p']
-            volume = stock['day']['v']
-            change = stock['day']['c']
-            if (
-                40 <= price <= 75 and
-                volume > 2_000_000 and
-                change >= 2
-            ):
-                tickers.append(stock['ticker'])
-        return tickers
+        all_tickers = res.get("tickers", [])
+        filtered = []
+
+        for stock in all_tickers:
+            try:
+                price = stock['lastTrade']['p']
+                volume = stock['day']['v']
+                pct_change = stock['day']['c']
+
+                if 40 <= price <= 75 and volume > 2_000_000 and pct_change >= 2:
+                    score = (
+                        pct_change +
+                        (volume / 1_000_000) +
+                        (10 if 50 <= price <= 65 else 0)
+                    )
+                    filtered.append({
+                        "ticker": stock['ticker'],
+                        "price": round(price, 2),
+                        "volume": volume,
+                        "percent_change": round(pct_change, 2),
+                        "score": round(score, 2)
+                    })
+            except:
+                continue
+
+        top10 = sorted(filtered, key=lambda x: x['score'], reverse=True)[:10]
+        return top10
     except Exception as e:
-        st.error(f"❌ Error fetching filtered tickers: {e}")
+        st.error(f"❌ Error fetching fast-ranked tickers: {e}")
         return []
 
+# ---------- Full Indicator + GPT ----------
 def get_all_indicators(ticker):
     try:
         trade_resp = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}")
@@ -142,22 +135,6 @@ def get_all_indicators(ticker):
         st.error(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
 
-def fetch_and_rank_all_filtered():
-    tickers = get_filtered_tickers()
-    st.write(f"✅ Scanning {len(tickers)} filtered tickers...")
-
-    candidates = []
-    progress = st.progress(0)
-    for i, t in enumerate(tickers):
-        data = get_all_indicators(t)
-        if data and is_valid_candidate(data):
-            candidates.append(data)
-        progress.progress((i + 1) / len(tickers))
-
-    if not candidates:
-        return "⚠️ No valid candidates found to rank."
-    return rank_with_gpt(candidates)
-
 def rank_with_gpt(candidates):
     prompt = f"""
 You're Mayo's trusted AI scalping assistant. Analyze these stocks based on:
@@ -181,9 +158,22 @@ Rank the top 5–10 stocks for scalping today, with scores and brief reasons.
     return res.choices[0].message.content
 
 # ---------- UI ----------
-st.subheader("🔎 Market Scanner Based on Your Strategy")
-if st.button("📊 Run Screener on All Stocks"):
-    with st.spinner("Scanning all filtered tickers and evaluating..."):
-        results = fetch_and_rank_all_filtered()
-        st.subheader("🏆 GPT-Ranked Top Trades")
-        st.markdown(results)
+st.subheader("🔎 Fast Screener Based on Your Strategy")
+if st.button("⚡ Run SQL-Like Fast Screener"):
+    with st.spinner("Scoring and ranking top 10 tickers..."):
+        top_fast = get_top_10_fast()
+        st.write("📈 Top 10 Fast-Filtered Tickers:")
+        st.dataframe(pd.DataFrame(top_fast))
+
+        full_data = []
+        for t in top_fast:
+            st.write(f"📊 Pulling indicators for {t['ticker']}...")
+            data = get_all_indicators(t['ticker'])
+            if data:
+                full_data.append(data)
+
+        if full_data:
+            st.subheader("🏆 GPT-Ranked Top Trades")
+            st.markdown(rank_with_gpt(full_data))
+        else:
+            st.warning("No valid candidates after full indicator checks.")
