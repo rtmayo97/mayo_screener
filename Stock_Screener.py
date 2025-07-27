@@ -138,27 +138,27 @@ if st.button("🔁 Run Screener"):
             st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
             continue
 
-            # Get percent change from snapshot
-            latest = candles.iloc[-1]
-            percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
-            percent = percent[0] if len(percent) > 0 else 0
-        
-            # Save snapshot with indicators
-            result_rows.append({
-                "ticker": symbol,
-                "price": latest['close'],
-                "volume": latest['volume'],
-                "percent_change": percent,
-                "macd_hist": latest['macd_hist'],
-                "rsi_2": latest['rsi_2'],
-                "rsi_5": latest['rsi_5'],
-                "ema_9": latest['ema_9'],
-                "ema_21": latest['ema_21'],
-                "atr": latest['atr'],
-                "vwap": latest['vwap'],
-                "bb_width": latest['bb_width'],
-                "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
-            })
+    # Get percent change from snapshot
+    latest = candles.iloc[-1]
+    percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
+    percent = percent[0] if len(percent) > 0 else 0
+
+    # Save snapshot with indicators
+    result_rows.append({
+        "ticker": symbol,
+        "price": latest['close'],
+        "volume": latest['volume'],
+        "percent_change": percent,
+        "macd_hist": latest['macd_hist'],
+        "rsi_2": latest['rsi_2'],
+        "rsi_5": latest['rsi_5'],
+        "ema_9": latest['ema_9'],
+        "ema_21": latest['ema_21'],
+        "atr": latest['atr'],
+        "vwap": latest['vwap'],
+        "bb_width": latest['bb_width'],
+        "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
+    })
 
 # --- 5. Convert result list to DataFrame ---
 df = pd.DataFrame(result_rows)
