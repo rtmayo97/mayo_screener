@@ -5,7 +5,7 @@
 import sys
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import date, timedelta
 import streamlit as st
 import os
 import pandas_ta as ta
@@ -64,42 +64,66 @@ def get_top_gainers():
     except:
         return []
 
+
 def get_all_indicators(ticker):
     try:
+        # Get trade and aggregate data
         trade_resp = requests.get(f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_API_KEY}")
         prev_resp = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?adjusted=true&apiKey={POLYGON_API_KEY}")
-
-        from datetime import date, timedelta
         end = date.today()
         start = end - timedelta(days=30)
-        stats_resp = requests.get(
-            f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}"
-        )
-
-     
+        stats_resp = requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=desc&limit=30&apiKey={POLYGON_API_KEY}")
         news_resp = requests.get(f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}")
-        news = news_resp.json()
-        headline = news.get('results', [{}])[0].get('title', 'No recent news.') if news.get('results') else 'No recent news.'
-        sentiment = 0  # Polygon doesn’t return sentiment — you can have GPT infer it if desired
 
-
+        # Optional debug display
         st.write(f"📦 {ticker} trade response:", trade_resp.status_code, trade_resp.text[:300])
         st.write(f"📦 {ticker} prev response:", prev_resp.status_code, prev_resp.text[:300])
         st.write(f"📦 {ticker} stats response:", stats_resp.status_code, stats_resp.text[:300])
         st.write(f"📦 {ticker} news response:", news_resp.status_code, news_resp.text[:300])
 
-        # Try to parse them after confirming they are JSON
+        # Parse JSON responses
         trade = trade_resp.json()
         prev = prev_resp.json()
         stats = stats_resp.json()
-        
+        news = news_resp.json()
 
-        # Rest of your parsing logic...
-        return {}  # Temporarily suppress logic until responses are validated
+        # Extract data
+        last_price = trade.get('last', {}).get('price', 0)
+        prev_close = prev.get('results', [{}])[0].get('c', 0)
+        pct_change = ((last_price - prev_close) / prev_close) * 100 if prev_close else 0
 
+        # Calculate RVOL and ATR
+        vols = [x['v'] for x in stats.get('results', [])]
+        rvol = round(vols[0] / (sum(vols[1:21]) / 20), 2) if len(vols) > 20 else 0
+        highs = [x['h'] for x in stats.get('results', [])]
+        lows = [x['l'] for x in stats.get('results', [])]
+        atr = round(pd.Series([h - l for h, l in zip(highs, lows)]).mean(), 2) if highs and lows else 0
+
+        # News headline + GPT sentiment
+        headline = news.get('results', [{}])[0].get('title', 'No recent news.') if news.get('results') else 'No recent news.'
+        sentiment_prompt = f"What is the market sentiment of this headline? Respond only with 'positive', 'neutral', or 'negative'.\n\nHeadline: {headline}"
+        sentiment_res = OPENAI_CLIENT.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": sentiment_prompt}],
+            temperature=0
+        )
+        sentiment = sentiment_res.choices[0].message.content.strip().lower()
+
+        return {
+            "ticker": ticker,
+            "price": round(last_price, 2),
+            "percent_change": round(pct_change, 2),
+            "vol": vols[0] if vols else 0,
+            "rvol": rvol,
+            "atr": atr,
+            "headline": headline,
+            "sentiment": sentiment
+        }
+    
     except Exception as e:
-        st.warning(f"❌ Error getting indicators for {ticker}: {e}")
+        st.error(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
+
 
 
 
