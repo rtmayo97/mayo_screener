@@ -65,7 +65,7 @@ if st.button("🔁 Run Screener"):
     
     st.subheader("🔍 Filtered Tickers")
     st.dataframe(filtered[['ticker', 'price', 'volume', 'percent_change']])
-
+#####------------------------------------------------------------------------------------------------------
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
         url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}/{datetime.now().strftime('%Y-%m-%d')}?adjusted=true&sort=desc&limit=100&apiKey={POLYGON_API_KEY}"
@@ -155,7 +155,7 @@ if st.button("🔁 Run Screener"):
     LIMIT 10;
     """
     top_stocks = pd.read_sql_query(query, conn)
-
+#####------------------------------------------------------------------------------------------------------------------------------
     # --- 8. Display in Streamlit ---
     st.subheader("🏆 Top Ranked Stocks (SQL Scored)")
     st.dataframe(top_stocks)
