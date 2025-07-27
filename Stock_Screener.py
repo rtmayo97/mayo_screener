@@ -67,8 +67,6 @@ if st.button("🔁 Run Screener"):
     ascending=[False, False]
     ).head(TICKERS_TO_PULL)
 
-    result_rows = []
-
     # Create a copy for display formatting only
     filtered_display = filtered.copy()
     
