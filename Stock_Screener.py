@@ -65,8 +65,7 @@ if st.button("🔁 Run Screener"):
     filtered = filtered.sort_values(
     by=['percent_change', 'volume'],
     ascending=[False, False]
-    )
-    head(TICKERS_TO_PULL)
+    ).head(TICKERS_TO_PULL)
 
     result_rows = []
     
