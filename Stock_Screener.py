@@ -128,13 +128,15 @@ if st.button("🔁 Run Screener"):
         latest = candles.iloc[-1]
     
         # --- Bollinger Bands with Append ---
-        ta.bbands(candles['close'], length=20, std=2, append=True)
-        
-        # Ensure BB columns exist before calculating width
-        if 'BBU_20_2.0' in candles.columns and 'BBL_20_2.0' in candles.columns:
-            candles['bb_width'] = candles['BBU_20_2.0'] - candles['BBL_20_2.0']
+        bbands = ta.bbands(candles['close'])
+
+        if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
+            candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
         else:
-            continue  # Skip if bands missing
+            st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
+            continue
+    # --- Now safe to grab latest row ---
+    latest = candles.iloc[-1]
 
 
     # Get percent change from snapshot
