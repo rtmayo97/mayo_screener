@@ -40,6 +40,7 @@ st.title("📈 PR356 Stock Screener")
 
 # --- Refresh Button ---
 if st.button("🔁 Run Screener"):
+    result_rows = []  # <-- define early and clearly
     st.write("Fetching data and calculating indicators...")
 
     # --- 1. Pull Snapshot Data from Polygon ---
