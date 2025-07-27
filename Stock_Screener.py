@@ -1,6 +1,5 @@
 # scalping_ai_assistant.py
-# Streamlit app: Scalping Strategy Screener + Journal + AI Insights
-# Password-protected access.
+# Streamlit app: Scalping Strategy Screener + Journal + AI Insights (Filtered Tickers Version)
 
 import sys
 import requests
@@ -69,12 +68,24 @@ def is_valid_candidate(stock):
         stock["rsi"] < 70
     )
 
-def get_top_gainers():
-    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={POLYGON_API_KEY}"
+def get_filtered_tickers():
+    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
     try:
         res = requests.get(url).json()
-        return [x['ticker'] for x in res.get('tickers', [])]
-    except:
+        tickers = []
+        for stock in res.get('tickers', []):
+            price = stock['lastTrade']['p']
+            volume = stock['day']['v']
+            change = stock['day']['c']
+            if (
+                40 <= price <= 75 and
+                volume > 2_000_000 and
+                change >= 2
+            ):
+                tickers.append(stock['ticker'])
+        return tickers
+    except Exception as e:
+        st.error(f"❌ Error fetching filtered tickers: {e}")
         return []
 
 def get_all_indicators(ticker):
@@ -131,14 +142,18 @@ def get_all_indicators(ticker):
         st.error(f"❌ Error getting indicators for {ticker}: {e}")
         return {}
 
-def fetch_and_rank():
-    tickers = get_top_gainers()
-    st.write("✅ Top Gainers from Polygon:", tickers)
+def fetch_and_rank_all_filtered():
+    tickers = get_filtered_tickers()
+    st.write(f"✅ Scanning {len(tickers)} filtered tickers...")
+
     candidates = []
-    for t in tickers:
+    progress = st.progress(0)
+    for i, t in enumerate(tickers):
         data = get_all_indicators(t)
         if data and is_valid_candidate(data):
             candidates.append(data)
+        progress.progress((i + 1) / len(tickers))
+
     if not candidates:
         return "⚠️ No valid candidates found to rank."
     return rank_with_gpt(candidates)
@@ -166,8 +181,9 @@ Rank the top 5–10 stocks for scalping today, with scores and brief reasons.
     return res.choices[0].message.content
 
 # ---------- UI ----------
-if st.button("🔍 Get Today's Top 10 Scalping Picks"):
-    with st.spinner("Scanning market and consulting GPT..."):
-        results = fetch_and_rank()
+st.subheader("🔎 Market Scanner Based on Your Strategy")
+if st.button("📊 Run Screener on All Stocks"):
+    with st.spinner("Scanning all filtered tickers and evaluating..."):
+        results = fetch_and_rank_all_filtered()
         st.subheader("🏆 GPT-Ranked Top Trades")
         st.markdown(results)
