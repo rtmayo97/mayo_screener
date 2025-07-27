@@ -59,7 +59,7 @@ if st.button("🔁 Run Screener"):
 
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
-        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}/{datetime.now().strftime('%Y-%m-%d')}?adjusted=true&sort=desc&limit=100&apiKey={API_KEY}"
+        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}/{datetime.now().strftime('%Y-%m-%d')}?adjusted=true&sort=desc&limit=100&apiKey={POLYGON_API_KEY}"
         r = requests.get(url)
         data = r.json()
         candles = pd.DataFrame(data.get("results", []))
