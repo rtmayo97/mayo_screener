@@ -91,7 +91,7 @@ if st.button("🔁 Run Screener"):
     result_rows = []
 
     for symbol in filtered['ticker']:
-    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
+        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
     r = requests.get(url)
     data = r.json()
 
