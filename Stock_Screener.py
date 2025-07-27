@@ -83,7 +83,7 @@ if st.button("🔁 Run Screener"):
     
     # Display the formatted table
     st.subheader("🔍 Filtered Tickers")
-    st.dataframe(filtered_display[['ticker', 'price', 'volume', 'percent_change']])
+    st.dataframe(filtered_display[['ticker', 'price', 'percent_change','volume']])
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
