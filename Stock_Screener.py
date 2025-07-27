@@ -56,6 +56,12 @@ if st.button("🔁 Run Screener"):
     ].head(TICKERS_TO_PULL)
 
     result_rows = []
+    
+    st.subheader("📊 Raw Ticker Snapshot Preview")
+    st.dataframe(tickers[['ticker', 'lastTrade.p', 'day.v']].head(100))
+
+    st.subheader("🔍 Filtered Tickers (Price $45–$70, Volume > 2M)")
+    st.dataframe(filtered[['ticker', 'lastTrade.p', 'day.v']])
 
     # --- 3. Loop Through Each Ticker and Get 1-Min Candles ---
     for symbol in filtered['ticker']:
