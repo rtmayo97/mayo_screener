@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import streamlit as st
 
 # --- CONFIG ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']
