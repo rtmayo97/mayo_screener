@@ -44,7 +44,7 @@ if st.button("🔁 Run Screener"):
     st.write("Fetching data and calculating indicators...")
 
     # --- 1. Pull Snapshot Data from Polygon ---
-    snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={API_KEY}"
+    snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
     snap = requests.get(snapshot_url).json()
     tickers = pd.json_normalize(snap['tickers'])
 
