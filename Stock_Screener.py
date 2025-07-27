@@ -123,8 +123,6 @@ if st.button("🔁 Run Screener"):
         candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
         candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
     
-        latest = candles.iloc[-1]
-    
         # --- Bollinger Bands with Append ---
         bbands = ta.bbands(candles['close'])
 
@@ -133,16 +131,15 @@ if st.button("🔁 Run Screener"):
         else:
             st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
             continue
-    # --- Now safe to grab latest row ---
-    latest = candles.iloc[-1]
-
-    # ✅ Check for required columns BEFORE using them
-    required_cols = ['macd_hist', 'rsi_2', 'rsi_5', 'ema_9', 'ema_21', 'atr', 'vwap', 'bb_width']
-    if not all(col in candles.columns for col in required_cols):
-        st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
-        continue
+    
+        # ✅ Check for required columns BEFORE using them
+        required_cols = ['macd_hist', 'rsi_2', 'rsi_5', 'ema_9', 'ema_21', 'atr', 'vwap', 'bb_width']
+        if not all(col in candles.columns for col in required_cols):
+            st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
+            continue
 
     # Get percent change from snapshot
+    latest = candles.iloc[-1]
     percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
     percent = percent[0] if len(percent) > 0 else 0
 
