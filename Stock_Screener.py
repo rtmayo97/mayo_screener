@@ -10,8 +10,6 @@ from datetime import datetime, timedelta
 # --- Configuration ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']  # Put your Polygon API Key in Streamlit secrets
 APP_PASSWORD = st.secrets['APP_PASSWORD']
-openai.api_key = st.secrets["Open_AI_Key"]
-OPENAI_CLIENT = openai
 TICKERS_TO_PULL = 50  # You can increase this later
 
 
