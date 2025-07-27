@@ -124,19 +124,16 @@ if st.button("🔁 Run Screener"):
         candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
     
         # --- Bollinger Bands with Append ---
+        # Compute Bollinger Bands just once
         bbands = ta.bbands(candles['close'])
-
+        
+        # Check if expected columns are present
         if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
             candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
         else:
             st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
             continue
-    
-        # ✅ Check for required columns BEFORE using them
-        required_cols = ['macd_hist', 'rsi_2', 'rsi_5', 'ema_9', 'ema_21', 'atr', 'vwap', 'bb_width']
-        if not all(col in candles.columns for col in required_cols):
-            st.warning(f"⚠️ Missing indicators for {symbol}: {candles.columns.tolist()}")
-            continue
+
 
     # Get percent change from snapshot
     latest = candles.iloc[-1]
