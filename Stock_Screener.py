@@ -171,22 +171,6 @@ if st.button("🔁 Run Screener"):
         if df.empty:
             st.warning("⚠️ No valid tickers with candle data.")
             st.stop()
-       
-        # Ensure all prices are numeric BEFORE any math
-        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
-        
-        # Calculate liquidity score AFTER numeric enforcement
-        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000
-        df['score'] += (df['liquidity_score'] > 100).astype(int)
-        
-        # Now format for display (not for calculations!)
-        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
-            df[col] = df[col].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "N/A")
-
 
         # Stop if no tickers passed the technical filters
         if df.empty:
@@ -209,7 +193,22 @@ if st.button("🔁 Run Screener"):
         df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000  # In millions
         df['score'] += (df['liquidity_score'] > 100).astype(int)  # or whatever threshold fits your style
 
+        # Ensure all prices are numeric BEFORE any math
+        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+        
+        # Calculate liquidity score AFTER numeric enforcement
+        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000
+        df['score'] += (df['liquidity_score'] > 100).astype(int)
+        
+        # Now format for display (not for calculations!)
+        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
+            df[col] = df[col].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "N/A")
 
+    
         #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 8. Sort and Display Top Ranked Stocks ---
         top_display = df.copy()
