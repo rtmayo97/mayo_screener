@@ -86,7 +86,7 @@ if st.button("🔁 Run Screener"):
         # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
         # Use ISO timestamps with time to pull a broader range
         end_time = datetime.now()
-        start_time = end_time - timedelta(days=4)  # go back 4 days
+        start_time = end_time - timedelta(days=5)  # go back 5 days
         
         from_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
         to_date = datetime.now().strftime('%Y-%m-%d')
@@ -103,7 +103,7 @@ if st.button("🔁 Run Screener"):
                 
                 if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
                     continue
-                if len(candles) < 20:
+                if len(candles) < 50:
                     st.warning(f"📉 Not enough candles for {symbol}")
                     continue
                 if candles.empty:
