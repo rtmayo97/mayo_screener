@@ -93,73 +93,73 @@ if st.button("🔁 Run Screener"):
     
         result_rows = []
     
-    for symbol in filtered['ticker']:
-            url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
-            r = requests.get(url)
-            data = r.json()
-        
-            # Parse and validate candles
-            candles = pd.DataFrame(data.get("results", []))
+        for symbol in filtered['ticker']:
+                url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
+                r = requests.get(url)
+                data = r.json()
             
-            if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
-                continue  # Skip tickers with missing data
-        
-            # Rename columns
-            candles.rename(columns={
-                'v': 'volume', 'o': 'open', 'c': 'close',
-                'h': 'high', 'l': 'low', 't': 'timestamp'
-            }, inplace=True)
-        
-            candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
-            candles.set_index('timestamp', inplace=True)
-        
-            # Make sure there's enough data for indicators
-            if len(candles) < 20:
-                continue
-        
-            # --- 4. Add Technical Indicators ---
-            candles['ema_9'] = ta.ema(candles['close'], length=9)
-            candles['ema_21'] = ta.ema(candles['close'], length=21)
-            candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
-            candles['rsi_2'] = ta.rsi(candles['close'], length=2)
-            candles['rsi_5'] = ta.rsi(candles['close'], length=5)
-            candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
-            candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
-            candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
-        
-            # --- Bollinger Bands with Append ---
-            # Compute Bollinger Bands just once
-            bbands = ta.bbands(candles['close'])
+                # Parse and validate candles
+                candles = pd.DataFrame(data.get("results", []))
+                
+                if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
+                    continue  # Skip tickers with missing data
             
-            # Check if expected columns are present
-            if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
-                candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
-            else:
-                st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
-                continue
+                # Rename columns
+                candles.rename(columns={
+                    'v': 'volume', 'o': 'open', 'c': 'close',
+                    'h': 'high', 'l': 'low', 't': 'timestamp'
+                }, inplace=True)
+            
+                candles['timestamp'] = pd.to_datetime(candles['timestamp'], unit='ms')
+                candles.set_index('timestamp', inplace=True)
+            
+                # Make sure there's enough data for indicators
+                if len(candles) < 20:
+                    continue
+            
+                # --- 4. Add Technical Indicators ---
+                candles['ema_9'] = ta.ema(candles['close'], length=9)
+                candles['ema_21'] = ta.ema(candles['close'], length=21)
+                candles['macd_hist'] = ta.macd(candles['close'])['MACDh_12_26_9']
+                candles['rsi_2'] = ta.rsi(candles['close'], length=2)
+                candles['rsi_5'] = ta.rsi(candles['close'], length=5)
+                candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
+                candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
+                candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
+            
+                # --- Bollinger Bands with Append ---
+                # Compute Bollinger Bands just once
+                bbands = ta.bbands(candles['close'])
+                
+                # Check if expected columns are present
+                if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
+                    candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
+                else:
+                    st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
+                    continue
+            
         
-    
-            # Get percent change from snapshot
-            latest = candles.iloc[-1]
-            percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
-            percent = percent[0] if len(percent) > 0 else 0
-        
-            # Save snapshot with indicators
-            result_rows.append({
-                "ticker": symbol,
-                "price": latest['close'],
-                "volume": latest['volume'],
-                "percent_change": percent,
-                "macd_hist": latest['macd_hist'],
-                "rsi_2": latest['rsi_2'],
-                "rsi_5": latest['rsi_5'],
-                "ema_9": latest['ema_9'],
-                "ema_21": latest['ema_21'],
-                "atr": latest['atr'],
-                "vwap": latest['vwap'],
-                "bb_width": latest['bb_width'],
-                "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
-            })
+                # Get percent change from snapshot
+                latest = candles.iloc[-1]
+                percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
+                percent = percent[0] if len(percent) > 0 else 0
+            
+                # Save snapshot with indicators
+                result_rows.append({
+                    "ticker": symbol,
+                    "price": latest['close'],
+                    "volume": latest['volume'],
+                    "percent_change": percent,
+                    "macd_hist": latest['macd_hist'],
+                    "rsi_2": latest['rsi_2'],
+                    "rsi_5": latest['rsi_5'],
+                    "ema_9": latest['ema_9'],
+                    "ema_21": latest['ema_21'],
+                    "atr": latest['atr'],
+                    "vwap": latest['vwap'],
+                    "bb_width": latest['bb_width'],
+                    "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
+                })
 
 # --- 5. Convert result list to DataFrame ---
 df = pd.DataFrame(result_rows)
