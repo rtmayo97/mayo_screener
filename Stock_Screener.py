@@ -161,8 +161,8 @@ if st.button("🔁 Run Screener"):
                     "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
                 })
 
-# --- 5. Convert result list to DataFrame ---
-df = pd.DataFrame(result_rows)
+                # --- 5. Convert result list to DataFrame ---
+                df = pd.DataFrame(result_rows)
 
 # Stop if no data returned
 if df.empty:
