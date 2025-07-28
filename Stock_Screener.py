@@ -166,7 +166,10 @@ if st.button("🔁 Run Screener"):
 
         # --- 5. Convert result list to DataFrame ---
         df = pd.DataFrame(result_rows)
-        
+
+        # Enforce ATR range filter BEFORE scoring
+        df = df[(df['atr'] >= 3) & (df['atr'] <= 6)]
+
         # Stop if no data returned
         if df.empty:
             st.warning("⚠️ No valid tickers with candle data.")
