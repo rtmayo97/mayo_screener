@@ -53,7 +53,7 @@ if st.button("🔁 Run Screener"):
             (tickers_df['lastTrade.p'] >= 45) &
             (tickers_df['lastTrade.p'] <= 70) &
             (tickers_df['day.v'] > 2_000_000) &
-            (tickers['dollar_volume'] > 100_000_000) &
+            (tickers_df['dollar_volume'] > 100_000_000) &
             (tickers_df['todaysChangePerc'] >= 2.0)].copy()
 
         # Sort by % gain and volume
