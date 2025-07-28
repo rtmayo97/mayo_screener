@@ -47,7 +47,7 @@ if st.button("🔁 Run Screener"):
         snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
         snap = requests.get(snapshot_url).json()
         tickers_df = pd.json_normalize(snap['tickers'])
-        tickers['dollar_volume'] = tickers['lastTrade.p'] * tickers['day.v']
+        tickers_df['dollar_volume'] = tickers_df['lastTrade.p'] * tickers_df['day.v']
 
         pre_filtered = tickers_df[
             (tickers_df['lastTrade.p'] >= 45) &
