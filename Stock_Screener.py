@@ -204,7 +204,7 @@ if st.button("🔁 Run Screener"):
         top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
         
         st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
+        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score','entry_price','target_price','stop_loss']])
                         
         # Optional: show all passing tickers
         with st.expander("📊 All Filtered Stocks"):
