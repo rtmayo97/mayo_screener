@@ -136,6 +136,11 @@ if st.button("🔁 Run Screener"):
                 if candles['close'].isna().sum() > 0 or candles['close'].nunique() == 1:
                     st.warning(f"⚠️ Invalid or flat close data for {symbol}")
                     continue
+                    
+                # Skip if volume from actual candles is too low
+                if candles['volume'].sum() < 2_000_000:
+                    st.warning(f"⛔ {symbol} skipped due to low intraday volume ({candles['volume'].sum():,.0f})")
+                    continue
                 
                 # Compute Bollinger Bands with correct length
                 bbands = ta.bbands(candles['close'], length=20)
