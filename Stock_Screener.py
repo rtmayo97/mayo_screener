@@ -47,11 +47,13 @@ if st.button("🔁 Run Screener"):
         snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
         snap = requests.get(snapshot_url).json()
         tickers_df = pd.json_normalize(snap['tickers'])
-        
+        tickers['dollar_volume'] = tickers['lastTrade.p'] * tickers['day.v']
+
         pre_filtered = tickers_df[
             (tickers_df['lastTrade.p'] >= 45) &
             (tickers_df['lastTrade.p'] <= 70) &
             (tickers_df['day.v'] > 2_000_000) &
+            (tickers['dollar_volume'] > 100_000_000) &
             (tickers_df['todaysChangePerc'] >= 2.0)].copy()
 
         # Sort by % gain and volume
@@ -176,6 +178,9 @@ if st.button("🔁 Run Screener"):
         df['score'] += (df['bb_width'] > df['bb_width'].mean()).astype(int)
         df['score'] += (df['vwap'] > df['ema_21']).astype(int)
         df['score'] += (df['percent_change'] > 3).astype(int)
+        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000  # in millions
+        df['score'] += (df['liquidity_score'] > 100).astype(int)  # or whatever threshold fits your style
+
 
         #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 8. Sort and Display Top Ranked Stocks ---
