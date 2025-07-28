@@ -48,7 +48,7 @@ if st.button("🔁 Run Screener"):
         snap = requests.get(snapshot_url).json()
         tickers = pd.json_normalize(snap['tickers'])
         
-        pre_filtered = tickers_df[
+        pre_filtered = tickers[
         (tickers_df['lastTrade.p'] >= 45) &
         (tickers_df['lastTrade.p'] <= 70) &
         (tickers_df['day.v'] > 2_000_000) &
@@ -59,7 +59,7 @@ if st.button("🔁 Run Screener"):
             by=['todaysChangePerc', 'day.v'],
             ascending=[False, False]).head(75)  # Only the top 75
 
-        st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
+        st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers)} total tickers...")
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
