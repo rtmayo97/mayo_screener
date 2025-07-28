@@ -208,6 +208,6 @@ top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"
 st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
 st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
                 
-                # Optional: show all passing tickers
-                with st.expander("📊 All Filtered Stocks"):
-                    st.dataframe(df_filtered)
+# Optional: show all passing tickers
+with st.expander("📊 All Filtered Stocks"):
+    st.dataframe(df_filtered)
