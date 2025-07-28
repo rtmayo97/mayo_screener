@@ -46,20 +46,20 @@ if st.button("🔁 Run Screener"):
         # --- 1. Pull Snapshot Data from Polygon ---
         snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
         snap = requests.get(snapshot_url).json()
-        tickers = pd.json_normalize(snap['tickers'])
+        tickers_df = pd.json_normalize(snap['tickers'])
         
-        pre_filtered = tickers[
-        (tickers['lastTrade.p'] >= 45) &
-        (tickers['lastTrade.p'] <= 70) &
-        (tickers['day.v'] > 2_000_000) &
-        (tickers['todaysChangePerc'] >= 2.0)].copy()
-    
+        pre_filtered = tickers_df[
+            (tickers_df['lastTrade.p'] >= 45) &
+            (tickers_df['lastTrade.p'] <= 70) &
+            (tickers_df['day.v'] > 2_000_000) &
+            (tickers_df['todaysChangePerc'] >= 2.0)].copy()
+
         # Sort by % gain and volume
         pre_filtered = pre_filtered.sort_values(
             by=['todaysChangePerc', 'day.v'],
             ascending=[False, False]).head(75)  # Only the top 75
 
-        st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers)} total tickers...")
+        st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
