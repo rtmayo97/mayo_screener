@@ -169,17 +169,17 @@ if st.button("🔁 Run Screener"):
                     st.warning("⚠️ No valid tickers with candle data.")
                     st.stop()
 
-# --- 6. Filter using snapshot + indicator criteria ---
-df_filtered = df[
-    (df['price'] >= 45) &
-    (df['price'] <= 70) &
-    (df['volume'] > 2_000_000) &
-    (df['percent_change'] >= 2.0) &
-    (df['macd_hist'] > 0) &
-    (df['rsi_2'] < 10) &
-    (df['atr'] >= 3) &
-    (df['atr'] <= 6)
-]
+                # --- 6. Filter using snapshot + indicator criteria ---
+                df_filtered = df[
+                    (df['price'] >= 45) &
+                    (df['price'] <= 70) &
+                    (df['volume'] > 2_000_000) &
+                    (df['percent_change'] >= 2.0) &
+                    (df['macd_hist'] > 0) &
+                    (df['rsi_2'] < 10) &
+                    (df['atr'] >= 3) &
+                    (df['atr'] <= 6)
+                ]
 
 # Stop if no tickers passed the technical filters
 if df_filtered.empty:
