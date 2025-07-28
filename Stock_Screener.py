@@ -141,7 +141,7 @@ if st.button("🔁 Run Screener"):
                 bbands = ta.bbands(candles['close'], length=20)
                 
                 # Debug check
-                st.write(f"{symbol} bbands columns: {bbands.columns.tolist()}")
+                ###st.write(f"{symbol} bbands columns: {bbands.columns.tolist()}")
                 
                 # Safe check before using
                 if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
@@ -194,7 +194,7 @@ if st.button("🔁 Run Screener"):
         )
         #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 8. Sort and Display Top Ranked Stocks ---
-        top_display = df_filtered.copy()
+        top_display = df.copy()
         top_display['price'] = pd.to_numeric(top_display['price'], errors='coerce')
         top_display['volume'] = pd.to_numeric(top_display['volume'], errors='coerce')
         top_display['percent_change'] = pd.to_numeric(top_display['percent_change'], errors='coerce')
