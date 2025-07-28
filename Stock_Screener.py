@@ -210,4 +210,4 @@ if st.button("🔁 Run Screener"):
                         
         # Optional: show all passing tickers
         with st.expander("📊 All Filtered Stocks"):
-            st.dataframe(df_filtered)
+            st.dataframe(df)
