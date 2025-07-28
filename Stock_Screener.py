@@ -172,7 +172,7 @@ if st.button("🔁 Run Screener"):
             st.warning("⚠️ No valid tickers with candle data.")
             st.stop()
 
-        df_final_display['price'] = df_final_display['price'].apply(lambda x: f"${x:,.2f}" if pd.notnull(x) else "N/A")
+        df['price'] = df_final_display['price'].apply(lambda x: f"${x:,.2f}" if pd.notnull(x) else "N/A")
         # Format prices for display
         for col in ['entry_price', 'target_price', 'stop_loss', 'price']:
             if col in df.columns:
