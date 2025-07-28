@@ -51,8 +51,8 @@ if st.button("🔁 Run Screener"):
             (tickers_df['lastTrade.p'] >= 20) &
             (tickers_df['lastTrade.p'] <= 175) &
             (tickers_df['day.v'] > 1_000_000) &
-            (tickers_df['dollar_volume'] > 1_000_000) &
-            (tickers_df['todaysChangePerc'] >= 1.0)].copy()
+            (tickers_df['dollar_volume'] > 1) &
+            (tickers_df['todaysChangePerc'] > 0)].copy()
 
         st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
 
