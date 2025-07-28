@@ -133,7 +133,7 @@ if st.button("🔁 Run Screener"):
                 percent = percent[0] if len(percent) > 0 else 0
                 entry_price = latest['close']
                 atr = latest['atr']
-                if pd.isna(atr) or not (3 <= atr <= 6):
+                if pd.isna(atr) or not (2 <= atr <= 6):
                     continue
                 target_price = entry_price + (atr * 1.5)
                 stop_loss = entry_price - (atr * 1.0)
@@ -180,7 +180,7 @@ if st.button("🔁 Run Screener"):
         df['score'] += ((df['atr'] >= 2) & (df['atr'] <= 6)).astype(int)
         df['score'] += (df['bb_width'] > df['bb_width'].mean()).astype(int)
         df['score'] += (df['vwap'] > df['ema_21']).astype(int)
-        df['score'] += (df['percent_change'] > 3).astype(int)
+        df['score'] += (df['percent_change'] > 2).astype(int)
         # Convert price and volume to numeric if needed (in case they've been formatted)
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
         df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
