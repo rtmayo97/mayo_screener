@@ -171,7 +171,13 @@ if st.button("🔁 Run Screener"):
         if df.empty:
             st.warning("⚠️ No valid tickers with candle data.")
             st.stop()
-        
+
+        # Format prices for display
+        for col in ['entry_price', 'target_price', 'stop_loss', 'price']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df[col] = df[col].map('${:,.2f}'.format)
+
         # Stop if no tickers passed the technical filters
         if df.empty:
             st.warning("⚠️ No tickers passed the technical filters.")
