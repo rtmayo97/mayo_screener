@@ -131,7 +131,7 @@ if st.button("🔁 Run Screener"):
                 candles['rsi_5'] = ta.rsi(candles['close'], length=5)
                 candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
                 candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
-                candles['bb_width'] = ta.bbands(candles['close'])['BBU_20_2.0'] - ta.bbands(candles['close'])['BBL_20_2.0']
+                
             
                 # --- Bollinger Bands with Append ---
                 # Compute Bollinger Bands just once
