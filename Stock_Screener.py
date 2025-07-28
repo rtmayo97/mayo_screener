@@ -168,12 +168,15 @@ if st.button("🔁 Run Screener"):
             st.stop()
         
         # --- 6. Score all stocks based on closeness to your criteria ---
-        df['score'] = (
-            (df['macd_hist'] > 0).astype(int) +
-            (df['rsi_2'] < 10).astype(int) +
-            (df['ema_9'] > df['ema_21']).astype(int) +
-            ((df['atr'] >= 3) & (df['atr'] <= 6)).astype(int)
-        )
+        df['score'] = 0
+        df['score'] += (df['macd_hist'] > 0).astype(int)
+        df['score'] += (df['rsi_2'] < 10).astype(int)
+        df['score'] += (df['ema_9'] > df['ema_21']).astype(int)
+        df['score'] += ((df['atr'] >= 3) & (df['atr'] <= 6)).astype(int)
+        df['score'] += (df['bb_width'] > df['bb_width'].mean()).astype(int)
+        df['score'] += (df['vwap'] > df['ema_21']).astype(int)
+        df['score'] += (df['percent_change'] > 3).astype(int)
+
         #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 8. Sort and Display Top Ranked Stocks ---
         top_display = df.copy()
