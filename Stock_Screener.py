@@ -59,7 +59,7 @@ if st.button("🔁 Run Screener"):
         # Sort by % gain and volume
         pre_filtered = pre_filtered.sort_values(
             by=['todaysChangePerc', 'day.v'],
-            ascending=[False, False]).head(75)  # Only the top 75
+            ascending=[False, False]).head(150)  # Only the top 150
 
         st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
 
