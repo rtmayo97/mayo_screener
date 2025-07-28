@@ -161,53 +161,53 @@ if st.button("🔁 Run Screener"):
                     "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
                 })
 
-    # --- 5. Convert result list to DataFrame ---
-    df = pd.DataFrame(result_rows)
-    
-    # Stop if no data returned
-    if df.empty:
-        st.warning("⚠️ No valid tickers with candle data.")
-        st.stop()
-    
-    # --- 6. Filter using snapshot + indicator criteria ---
-    df_filtered = df[
-        (df['price'] >= 45) &
-        (df['price'] <= 70) &
-        (df['volume'] > 2_000_000) &
-        (df['percent_change'] >= 2.0) &
-        (df['macd_hist'] > 0) &
-        (df['rsi_2'] < 10) &
-        (df['atr'] >= 3) &
-        (df['atr'] <= 6)
-    ]
-    
-    # Stop if no tickers passed the technical filters
-    if df_filtered.empty:
-        st.warning("⚠️ No tickers passed the technical filters.")
-        st.stop()
-    
-    # --- 7. Score each stock using pandas ---
-    df_filtered['score'] = (
-        (df_filtered['macd_hist'] > 0).astype(int) +
-        (df_filtered['rsi_2'] < 10).astype(int) +
-        (df_filtered['ema_9'] > df_filtered['ema_21']).astype(int)
-    )
-    #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # --- 8. Sort and Display Top Ranked Stocks ---
-    top_display = df_filtered.copy()
-    top_display['price'] = pd.to_numeric(top_display['price'], errors='coerce')
-    top_display['volume'] = pd.to_numeric(top_display['volume'], errors='coerce')
-    top_display['percent_change'] = pd.to_numeric(top_display['percent_change'], errors='coerce')
-    
-    top_display = top_display.sort_values(by=["score", "percent_change", "volume"], ascending=[False, False, False])
-    
-    top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
-    top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
-    top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
-    
-    st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-    st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
-                    
-    # Optional: show all passing tickers
-    with st.expander("📊 All Filtered Stocks"):
-        st.dataframe(df_filtered)
+        # --- 5. Convert result list to DataFrame ---
+        df = pd.DataFrame(result_rows)
+        
+        # Stop if no data returned
+        if df.empty:
+            st.warning("⚠️ No valid tickers with candle data.")
+            st.stop()
+        
+        # --- 6. Filter using snapshot + indicator criteria ---
+        df_filtered = df[
+            (df['price'] >= 45) &
+            (df['price'] <= 70) &
+            (df['volume'] > 2_000_000) &
+            (df['percent_change'] >= 2.0) &
+            (df['macd_hist'] > 0) &
+            (df['rsi_2'] < 10) &
+            (df['atr'] >= 3) &
+            (df['atr'] <= 6)
+        ]
+        
+        # Stop if no tickers passed the technical filters
+        if df_filtered.empty:
+            st.warning("⚠️ No tickers passed the technical filters.")
+            st.stop()
+        
+        # --- 7. Score each stock using pandas ---
+        df_filtered['score'] = (
+            (df_filtered['macd_hist'] > 0).astype(int) +
+            (df_filtered['rsi_2'] < 10).astype(int) +
+            (df_filtered['ema_9'] > df_filtered['ema_21']).astype(int)
+        )
+        #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # --- 8. Sort and Display Top Ranked Stocks ---
+        top_display = df_filtered.copy()
+        top_display['price'] = pd.to_numeric(top_display['price'], errors='coerce')
+        top_display['volume'] = pd.to_numeric(top_display['volume'], errors='coerce')
+        top_display['percent_change'] = pd.to_numeric(top_display['percent_change'], errors='coerce')
+        
+        top_display = top_display.sort_values(by=["score", "percent_change", "volume"], ascending=[False, False, False])
+        
+        top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
+        top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
+        top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
+        
+        st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
+        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
+                        
+        # Optional: show all passing tickers
+        with st.expander("📊 All Filtered Stocks"):
+            st.dataframe(df_filtered)
