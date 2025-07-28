@@ -164,7 +164,7 @@ if st.button("🔁 Run Screener"):
                 result_rows.append({
                     "ticker": symbol,
                     "price": latest['close'],
-                    "volume": latest['volume'],
+                    "volume": int(candles['volume'].sum()),
                     "percent_change": percent,
                     "macd_hist": latest['macd_hist'],
                     "rsi_2": latest['rsi_2'],
