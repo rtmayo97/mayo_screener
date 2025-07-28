@@ -9,8 +9,6 @@ from datetime import datetime, timedelta
 # --- Configuration ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']  # Put your Polygon API Key in Streamlit secrets
 APP_PASSWORD = st.secrets['APP_PASSWORD']
-TICKERS_TO_PULL = 50  # You can increase this later
-
 
 # --- PASSWORD CHECK ---
 def check_password():
@@ -52,8 +50,8 @@ if st.button("🔁 Run Screener"):
         pre_filtered = tickers_df[
             (tickers_df['lastTrade.p'] >= 20) &
             (tickers_df['lastTrade.p'] <= 175) &
-            (tickers_df['day.v'] > 2_000_000) &
-            (tickers_df['dollar_volume'] > 100_000_000) &
+            (tickers_df['day.v'] > 1_000_000) &
+            (tickers_df['dollar_volume'] > 1_000_000) &
             (tickers_df['todaysChangePerc'] >= 1.0)].copy()
 
         st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
@@ -135,6 +133,8 @@ if st.button("🔁 Run Screener"):
                 percent = percent[0] if len(percent) > 0 else 0
                 entry_price = latest['close']
                 atr = latest['atr']
+                if pd.isna(atr) or not (3 <= atr <= 6):
+                    continue
                 target_price = entry_price + (atr * 1.5)
                 stop_loss = entry_price - (atr * 1.0)
 
@@ -161,9 +161,6 @@ if st.button("🔁 Run Screener"):
 
         # --- 5. Convert result list to DataFrame ---
         df = pd.DataFrame(result_rows)
-
-        # Enforce ATR range filter BEFORE scoring
-        df = df[(df['atr'] >= 3) & (df['atr'] <= 6)]
 
         # Stop if no data returned
         if df.empty:
