@@ -138,6 +138,11 @@ if st.button("🔁 Run Screener"):
                 latest = candles.iloc[-1]
                 percent = pre_filtered.loc[pre_filtered['ticker'] == symbol, 'todaysChangePerc'].values
                 percent = percent[0] if len(percent) > 0 else 0
+                entry_price = latest['close']
+                atr = latest['atr']
+                target_price = entry_price + (atr * 1.5)
+                stop_loss = entry_price - (atr * 1.0)
+
             
                 # Save snapshot with indicators
                 result_rows.append({
