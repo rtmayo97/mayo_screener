@@ -164,10 +164,10 @@ if st.button("🔁 Run Screener"):
                 # --- 5. Convert result list to DataFrame ---
                 df = pd.DataFrame(result_rows)
 
-# Stop if no data returned
-if df.empty:
-    st.warning("⚠️ No valid tickers with candle data.")
-    st.stop()
+                # Stop if no data returned
+                if df.empty:
+                    st.warning("⚠️ No valid tickers with candle data.")
+                    st.stop()
 
 # --- 6. Filter using snapshot + indicator criteria ---
 df_filtered = df[
