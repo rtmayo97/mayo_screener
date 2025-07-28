@@ -47,41 +47,20 @@ if st.button("🔁 Run Screener"):
         snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?apiKey={POLYGON_API_KEY}"
         snap = requests.get(snapshot_url).json()
         tickers = pd.json_normalize(snap['tickers'])
-        tickers = tickers.rename(columns={
-        'lastTrade.p': 'price',
-        'day.v': 'volume',
-        'todaysChangePerc': 'percent_change'
     })
+        pre_filtered = tickers_df[
+        (tickers_df['lastTrade.p'] >= 45) &
+        (tickers_df['lastTrade.p'] <= 70) &
+        (tickers_df['day.v'] > 2_000_000) &
+        (tickers_df['todaysChangePerc'] >= 2.0)].copy()
     
-        # --- 2. Filter Tickers by Price and Volume ---
-        filtered = tickers[
-            (tickers['price'] >= 45) &
-            (tickers['price'] <= 70) &
-            (tickers['volume'] > 2_000_000) &
-            (tickers['percent_change'] >= 2.0)
-        ].head(TICKERS_TO_PULL)
-    
-        # --- Sort by % change and volume descending ---
-        filtered = filtered.sort_values(
-        by=['percent_change', 'volume'],
-        ascending=[False, False]
-        ).head(TICKERS_TO_PULL)
-    
-        # Create a copy for display formatting only
-        filtered_display = filtered.copy()
-        
-        # Format volume with commas
-        filtered_display['volume'] = filtered_display['volume'].apply(lambda x: f"{int(x):,}")
-        
-        # Format percent change as percentage with 2 decimal places
-        filtered_display['percent_change'] = filtered_display['percent_change'].apply(lambda x: f"{x:.2f}%")
-        
-        # Optional: format price with 2 decimals as well
-        filtered_display['price'] = filtered_display['price'].apply(lambda x: f"${x:.2f}")
-        
-        # Display the formatted table
-        st.subheader("🔍 Filtered Tickers")
-        st.dataframe(filtered_display[['ticker', 'price', 'percent_change','volume']])
+        # Sort by % gain and volume
+        pre_filtered = pre_filtered.sort_values(
+            by=['todaysChangePerc', 'day.v'],
+            ascending=[False, False]).head(75)  # Only the top 75
+
+        st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
+
     #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
         # Use ISO timestamps with time to pull a broader range
@@ -93,7 +72,7 @@ if st.button("🔁 Run Screener"):
 
         result_rows = []
     
-        for symbol in filtered['ticker']:
+        for symbol in pre_filtered['ticker']:
                 url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
                 r = requests.get(url)
                 data = r.json()
