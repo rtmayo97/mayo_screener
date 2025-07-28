@@ -181,7 +181,7 @@ if st.button("🔁 Run Screener"):
             st.stop()
         
         # Stop if no tickers passed the technical filters
-        if df_filtered.empty:
+        if df.empty:
             st.warning("⚠️ No tickers passed the technical filters.")
             st.stop()
         
