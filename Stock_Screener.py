@@ -172,7 +172,7 @@ if st.button("🔁 Run Screener"):
             st.warning("⚠️ No valid tickers with candle data.")
             st.stop()
 
-        df['price'] = df['price'].apply(lambda x: f"${x:,.2f}" if pd.notnull(x) else "N/A")
+        
         # Format prices for display
         for col in ['entry_price', 'target_price', 'stop_loss', 'price']:
             if col in df.columns:
@@ -193,6 +193,7 @@ if st.button("🔁 Run Screener"):
         df['score'] += (df['bb_width'] > df['bb_width'].mean()).astype(int)
         df['score'] += (df['vwap'] > df['ema_21']).astype(int)
         df['score'] += (df['percent_change'] > 3).astype(int)
+        df['price'] = df['price'].apply(lambda x: f"${x:,.2f}" if pd.notnull(x) else "N/A")
         # Convert price and volume to numeric if needed (in case they've been formatted)
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
         df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
