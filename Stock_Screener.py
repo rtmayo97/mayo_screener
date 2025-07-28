@@ -136,7 +136,7 @@ if st.button("🔁 Run Screener"):
 
                 # Get percent change from snapshot
                 latest = candles.iloc[-1]
-                percent = pre_filtered.loc[pre_filtered['ticker'] == symbol, 'percent_change'].values
+                percent = pre_filtered.loc[pre_filtered['ticker'] == symbol, 'todaysChangePerc'].values
                 percent = percent[0] if len(percent) > 0 else 0
             
                 # Save snapshot with indicators
