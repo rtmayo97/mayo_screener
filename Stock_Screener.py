@@ -91,7 +91,7 @@ if st.button("🔁 Run Screener"):
         from_date = start_time.strftime('%Y-%m-%dT%H:%M:%S')
         to_date = end_time.strftime('%Y-%m-%dT%H:%M:%S')
     
-    result_rows = []
+        result_rows = []
     
     for symbol in filtered['ticker']:
             url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/5/minute/{from_date}/{to_date}?adjusted=true&sort=asc&limit=1000&apiKey={POLYGON_API_KEY}"
