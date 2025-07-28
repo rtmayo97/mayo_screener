@@ -86,11 +86,11 @@ if st.button("🔁 Run Screener"):
         # --- 3. Loop Through Each Ticker and Get 5-Min Candles ---
         # Use ISO timestamps with time to pull a broader range
         end_time = datetime.now()
-        start_time = end_time - timedelta(days=3)  # go back 3 days
+        start_time = end_time - timedelta(days=4)  # go back 4 days
         
-        from_date = start_time.strftime('%Y-%m-%dT%H:%M:%S')
-        to_date = end_time.strftime('%Y-%m-%dT%H:%M:%S')
-    
+        from_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
+        to_date = datetime.now().strftime('%Y-%m-%d')
+
         result_rows = []
     
         for symbol in filtered['ticker']:
@@ -102,8 +102,14 @@ if st.button("🔁 Run Screener"):
                 candles = pd.DataFrame(data.get("results", []))
                 
                 if candles.empty or not all(col in candles.columns for col in ['c', 'v', 'h', 'l']):
-                    continue  # Skip tickers with missing data
-            
+                    continue
+                if len(candles) < 20:
+                    st.warning(f"📉 Not enough candles for {symbol}")
+                    continue
+                if candles.empty:
+                    st.warning(f"⛔ No candles for {symbol}")
+                    continue
+                
                 # Rename columns
                 candles.rename(columns={
                     'v': 'volume', 'o': 'open', 'c': 'close',
