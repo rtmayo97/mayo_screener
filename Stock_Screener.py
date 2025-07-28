@@ -159,6 +159,9 @@ if st.button("🔁 Run Screener"):
                     "vwap": latest['vwap'],
                     "bb_width": latest['bb_width'],
                     "ema_crossover": int(latest['ema_9'] > latest['ema_21']),
+                    "entry_price": entry_price,
+                    "target_price": target_price,
+                    "stop_loss": stop_loss,
                 })
 
         # --- 5. Convert result list to DataFrame ---
