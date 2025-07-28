@@ -56,11 +56,6 @@ if st.button("🔁 Run Screener"):
             (tickers_df['dollar_volume'] > 100_000_000) &
             (tickers_df['todaysChangePerc'] >= 2.0)].copy()
 
-        # Sort by % gain and volume
-        pre_filtered = pre_filtered.sort_values(
-            by=['todaysChangePerc', 'day.v'],
-            ascending=[False, False]).head(500)  # Only the top 500
-
         st.write(f"Scanning {len(pre_filtered)} top candidates from {len(tickers_df)} total tickers...")
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
