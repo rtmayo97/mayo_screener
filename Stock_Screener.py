@@ -192,7 +192,11 @@ if st.button("🔁 Run Screener"):
         df['score'] += (df['bb_width'] > df['bb_width'].mean()).astype(int)
         df['score'] += (df['vwap'] > df['ema_21']).astype(int)
         df['score'] += (df['percent_change'] > 3).astype(int)
-        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000  # in millions
+        # Convert price and volume to numeric if needed (in case they've been formatted)
+        df['price'] = pd.to_numeric(df['price'], errors='coerce')
+        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+        # Now calculate liquidity score
+        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000  # In millions
         df['score'] += (df['liquidity_score'] > 100).astype(int)  # or whatever threshold fits your style
 
 
