@@ -201,13 +201,13 @@ if st.button("🔁 Run Screener"):
                 
                 top_display = top_display.sort_values(by=["score", "percent_change", "volume"], ascending=[False, False, False])
 
-top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
-top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
-top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
-
-st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
-
-# Optional: show all passing tickers
-with st.expander("📊 All Filtered Stocks"):
-    st.dataframe(df_filtered)
+                top_display['price'] = top_display['price'].apply(lambda x: f"${x:.2f}")
+                top_display['volume'] = top_display['volume'].apply(lambda x: f"{int(x):,}")
+                top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
+                
+                st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
+                st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score']])
+                
+                # Optional: show all passing tickers
+                with st.expander("📊 All Filtered Stocks"):
+                    st.dataframe(df_filtered)
