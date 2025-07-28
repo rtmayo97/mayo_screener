@@ -132,23 +132,24 @@ if st.button("🔁 Run Screener"):
                 candles['atr'] = ta.atr(candles['high'], candles['low'], candles['close'], length=14)
                 candles['vwap'] = ta.vwap(candles['high'], candles['low'], candles['close'], candles['volume'])
 
-                # --- Before computing indicators ---
+                # Ensure candle data is usable
                 if candles['close'].isna().sum() > 0 or candles['close'].nunique() == 1:
                     st.warning(f"⚠️ Invalid or flat close data for {symbol}")
                     continue
                 
-                # Debug: See what columns are returned by ta.bbands
-                bbands = ta.bbands(candles['close'])
+                # Compute Bollinger Bands with correct length
+                bbands = ta.bbands(candles['close'], length=20)
+                
+                # Debug check
                 st.write(f"{symbol} bbands columns: {bbands.columns.tolist()}")
                 
-                # Only compute bb_width if columns are present
+                # Safe check before using
                 if bbands is not None and all(x in bbands.columns for x in ['BBU_20_2.0', 'BBL_20_2.0']):
                     candles['bb_width'] = bbands['BBU_20_2.0'] - bbands['BBL_20_2.0']
                 else:
                     st.warning(f"⚠️ Missing Bollinger Bands for {symbol}")
                     continue
 
-            
                 # Get percent change from snapshot
                 latest = candles.iloc[-1]
                 percent = filtered.loc[filtered['ticker'] == symbol, 'percent_change'].values
