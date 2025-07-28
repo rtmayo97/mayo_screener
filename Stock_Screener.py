@@ -172,14 +172,21 @@ if st.button("🔁 Run Screener"):
             st.warning("⚠️ No valid tickers with candle data.")
             st.stop()
        
-        df['price'] = df['price'].apply(
-        lambda x: f"${float(x):,.2f}" if pd.notnull(x) and isinstance(x, (int, float)) else "N/A")
-    
-        # Format prices for display
-        for col in ['entry_price', 'target_price', 'stop_loss', 'price']:
+        # Ensure all prices are numeric BEFORE any math
+        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-                df[col] = df[col].map('${:,.2f}'.format)
+        
+        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+        
+        # Calculate liquidity score AFTER numeric enforcement
+        df['liquidity_score'] = (df['price'] * df['volume']) / 1_000_000
+        df['score'] += (df['liquidity_score'] > 100).astype(int)
+        
+        # Now format for display (not for calculations!)
+        for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
+            df[col] = df[col].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "N/A")
+
 
         # Stop if no tickers passed the technical filters
         if df.empty:
