@@ -218,8 +218,7 @@ if st.button("🔁 Run Screener"):
         
         # Now format for display (not for calculations!)
         for col in ['price', 'entry_price', 'target_price', 'stop_loss']:
-            df[col] = df[col].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "N/A")
-
+            df[f"{col}_display"] = df[col].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "N/A")
     
         #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         # --- 8. Sort and Display Top Ranked Stocks ---
@@ -235,8 +234,8 @@ if st.button("🔁 Run Screener"):
         top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
         
         st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score',
-                          'entry_price', 'target_price', 'stop_loss',
+        st.dataframe(top_display[['ticker', 'price_display', 'percent_change', 'volume', 'score',
+                          'entry_price_display', 'target_price_display', 'stop_loss_display',
                           'screened_at', 'time_since_screened']])
                         
         # Optional: show all passing tickers
