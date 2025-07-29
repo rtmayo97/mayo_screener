@@ -4,7 +4,10 @@ import streamlit as st
 import pandas as pd
 import pandas_ta as ta
 import requests
+import pytz
 from datetime import datetime, timedelta
+
+CST = pytz.timezone("US/Central")
 
 # --- Configuration ---
 POLYGON_API_KEY = st.secrets['Polygon_Key']  # Put your Polygon API Key in Streamlit secrets
@@ -138,7 +141,19 @@ if st.button("🔁 Run Screener"):
                 target_price = entry_price + (atr * 1.5)
                 stop_loss = entry_price - (atr * 1.0)
 
-            
+                # Capture the time the stock met criteria (last candle timestamp)
+                # Use the last candle timestamp and convert to CST
+                screened_at = latest.name.tz_localize('UTC').astimezone(CST)
+                time_since = datetime.now(CST) - screened_at
+                
+                # Format "how long ago" string
+                if time_since.total_seconds() < 60:
+                    time_since_str = f"{int(time_since.total_seconds())} sec ago"
+                elif time_since.total_seconds() < 3600:
+                    time_since_str = f"{int(time_since.total_seconds() // 60)} min ago"
+                else:
+                    time_since_str = f"{int(time_since.total_seconds() // 3600)} hr ago"
+    
                 # Save snapshot with indicators
                 result_rows.append({
                     "ticker": symbol,
@@ -157,6 +172,8 @@ if st.button("🔁 Run Screener"):
                     "entry_price": entry_price,
                     "target_price": target_price,
                     "stop_loss": stop_loss,
+                    "screened_at": screened_at.strftime("%Y-%m-%d %I:%M:%S %p CST"),
+                     "time_since_screened": time_since_str
                 })
 
         # --- 5. Convert result list to DataFrame ---
@@ -218,7 +235,9 @@ if st.button("🔁 Run Screener"):
         top_display['percent_change'] = top_display['percent_change'].apply(lambda x: f"{x:.2f}%")
         
         st.subheader("🏆 Top Ranked Stocks (Filtered + Scored)")
-        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score','entry_price','target_price','stop_loss']])
+        st.dataframe(top_display[['ticker', 'price', 'percent_change', 'volume', 'score',
+                          'entry_price', 'target_price', 'stop_loss',
+                          'screened_at', 'time_since_screened']])
                         
         # Optional: show all passing tickers
         with st.expander("📊 All Filtered Stocks"):
