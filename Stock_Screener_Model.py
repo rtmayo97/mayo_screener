@@ -36,7 +36,7 @@ if not check_password():
     st.stop()
 
 # --- Streamlit Setup ---
-st.set_page_config(page_title="PR356 Screener", layout="wide")
+st.set_page_config(page_title="Model PR356 Screener", layout="wide")
 st.title("📈 Model PR356 Stock Screener")
 
 # --- Refresh Button ---
